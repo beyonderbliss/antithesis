@@ -7,7 +7,7 @@ const BABEL_URL =
   "https://unpkg.com/@babel/standalone@7.28.4/babel.min.js";
 
 const LUCIDE_URL =
-  "https://unpkg.com/lucide-react@0.472.0/dist/umd/lucide-react.min.js";
+  "https://unpkg.com/lucide-react@0.472.0/dist/umd/lucide-react.min.js?v=phase05-" + Date.now();
 
 function loadScript(src, globalName) {
   return new Promise((resolve, reject) => {
@@ -95,8 +95,15 @@ export default function App() {
         // lucide-react's UMD build expects React on the global object.
         // Canvas provides React to this entry as an ES module, so bridge only
         // during Lucide initialization and restore the previous global after.
+        // lucide-react UMD resolves its React dependency from the lowercase
+        // global `react`, while Canvas exposes React through this entry module.
+        // Bridge both names temporarily so Lucide captures the exact same React
+        // instance that renders Antithesis. The cache-busted URL also prevents
+        // reuse of a Lucide instance initialized during an earlier failed load.
         const previousGlobalReact = window.React;
+        const previousGlobalReactLower = window.react;
         window.React = React;
+        window.react = React;
 
         let sourceResponse;
         try {
@@ -110,6 +117,12 @@ export default function App() {
             try { delete window.React; } catch {}
           } else {
             window.React = previousGlobalReact;
+          }
+
+          if (previousGlobalReactLower === undefined) {
+            try { delete window.react; } catch {}
+          } else {
+            window.react = previousGlobalReactLower;
           }
         }
 
