@@ -1,7 +1,7 @@
 // ANTITHESIS PHASE 0 — GitHub → Canvas runtime loader proof
 // This file intentionally contains no Antithesis application logic.
 
-export const PHASE0_PAYLOAD = {
+return {
   id: "phase0-github-loader",
   version: 1,
   message: "GitHub module loaded successfully.",
