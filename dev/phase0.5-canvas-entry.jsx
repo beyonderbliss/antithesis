@@ -50,13 +50,23 @@ function prepareSource(source) {
   let code = source;
 
   code = code.replace(
-    /import React,\s*\{([\s\S]*?)\}\s*from\s*["']react["'];?/,
+    /import React,\s*\{([\s\S]*?)\}\s*from\s*["']react["'];?/g,
     (_, hooks) => "const {" + hooks + "} = React;"
   );
 
   code = code.replace(
-    /import\s*\{([\\s\\S]*?)\}\s*from\s*["']lucide-react["'];?/,
+    /import\s*\{([\s\S]*?)\}\s*from\s*["']lucide-react["'];?/g,
     (_, icons) => "const {" + icons + "} = LucideReact;"
+  );
+
+  // Final guard: no ES-module imports may reach new Function.
+  code = code.replace(
+    /import\s+[\s\S]*?from\s+["'][^"']+["'];?/g,
+    ""
+  );
+  code = code.replace(
+    /import\s+["'][^"']+["'];?/g,
+    ""
   );
 
   code = code.replace(/export\s+default\s+/g, "");
