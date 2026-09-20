@@ -18,7 +18,14 @@ function loadScript(src, globalName) {
 
     const existing = document.querySelector('script[data-phase05-src="' + src + '"]');
     if (existing) {
-      existing.addEventListener("load", () => resolve(globalName ? window[globalName] : true), { once: true });
+      const check = () => {
+        if (!globalName || window[globalName]) {
+          resolve(globalName ? window[globalName] : true);
+        } else {
+          reject(new Error("Dependency loaded without global: " + globalName));
+        }
+      };
+      existing.addEventListener("load", check, { once: true });
       existing.addEventListener("error", () => reject(new Error("Failed to load " + src)), { once: true });
       return;
     }
@@ -27,7 +34,13 @@ function loadScript(src, globalName) {
     script.src = src;
     script.async = true;
     script.dataset.phase05Src = src;
-    script.onload = () => resolve(globalName ? window[globalName] : true);
+    script.onload = () => {
+      if (!globalName || window[globalName]) {
+        resolve(globalName ? window[globalName] : true);
+      } else {
+        reject(new Error("Dependency loaded without global: " + globalName));
+      }
+    };
     script.onerror = () => reject(new Error("Failed to load " + src));
     document.head.appendChild(script);
   });
@@ -63,11 +76,26 @@ export default function App() {
 
     (async () => {
       try {
-        const [sourceResponse] = await Promise.all([
-          fetch(SOURCE_URL + "?v=" + Date.now(), { cache: "no-store" }),
-          loadScript(BABEL_URL, "Babel"),
-          loadScript(LUCIDE_URL, "LucideReact")
-        ]);
+        // lucide-react's UMD build expects React on the global object.
+        // Canvas provides React to this entry as an ES module, so bridge only
+        // during Lucide initialization and restore the previous global after.
+        const previousGlobalReact = window.React;
+        window.React = React;
+
+        let sourceResponse;
+        try {
+          [sourceResponse] = await Promise.all([
+            fetch(SOURCE_URL + "?v=" + Date.now(), { cache: "no-store" }),
+            loadScript(BABEL_URL, "Babel"),
+            loadScript(LUCIDE_URL, "LucideReact")
+          ]);
+        } finally {
+          if (previousGlobalReact === undefined) {
+            try { delete window.React; } catch {}
+          } else {
+            window.React = previousGlobalReact;
+          }
+        }
 
         if (!sourceResponse.ok) {
           throw new Error("Antithesis source HTTP " + sourceResponse.status);
