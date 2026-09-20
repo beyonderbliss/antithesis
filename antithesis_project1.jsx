@@ -11109,7 +11109,29 @@ export default function App() {
           ? module(typeof React !== "undefined" ? React : window.React)
           : module;
 
-        ANTITHESIS_CONSTANTS = constantsData;
+        ANTITHESIS_CONSTANTS = {
+          ...constantsData,
+
+          // =================================================
+          // GITHUB MIGRATION — VERSION LOG RESET
+          // GitHub is now the source-of-truth for this release log.
+          // Keep this list as the active UI-facing changelog until
+          // the constants module itself is migrated to GitHub.
+          // =================================================
+          SYSTEM_VERSIONS: [
+            {
+              version: "v1.0.0",
+              date: "2026-09-21",
+              changes: [
+                "GitHub Migration — Antithesis memasuki lembar pengembangan baru dengan GitHub sebagai source-of-truth engineering.",
+                "Canvas diposisikan sebagai runtime/test environment; perubahan source tidak lagi dikerjakan melalui Gemini Canvas.",
+                "GitHub → Canvas live loader berhasil dibuktikan melalui Phase 0 dan Phase 0.5.",
+                "Version log di-reset ke v1.0.0 sebagai titik awal lembar baru dan akan terus diperbarui dari sini."
+              ]
+            }
+          ]
+        };
+
         setIsConstantsLoaded(true);
       } catch (error) {
         console.error("[External Module] Gagal memuat constants.js:", error);
