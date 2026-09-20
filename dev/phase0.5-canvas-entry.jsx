@@ -56,7 +56,13 @@ function prepareSource(source) {
 
   code = code.replace(
     /import\s*\{([\s\S]*?)\}\s*from\s*["']lucide-react["'];?/g,
-    (_, icons) => "const {" + icons + "} = LucideReact;"
+    (_, icons) => {
+      const normalizedIcons = icons.replace(
+        /\b([A-Za-z_$][\w$]*)\s+as\s+([A-Za-z_$][\w$]*)\b/g,
+        "$1: $2"
+      );
+      return "const {" + normalizedIcons + "} = LucideReact;";
+    }
   );
 
   // Final guard: no ES-module imports may reach new Function.
