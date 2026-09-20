@@ -3,7 +3,7 @@
 
 return {
   id: "phase0-github-loader",
-  version: 1,
+  version: 2,
   message: "GitHub module loaded successfully.",
   source: "beyonderbliss/antithesis@phase-0/canvas-github-loader"
 };
