@@ -37,7 +37,7 @@ function prepareSource(source) {
   let code = source;
 
   code = code.replace(
-    /import React,\s*\{([\\s\\S]*?)\}\s*from\s*["']react["'];?/,
+    /import React,\s*\{([\s\S]*?)\}\s*from\s*["']react["'];?/,
     (_, hooks) => "const {" + hooks + "} = React;"
   );
 
