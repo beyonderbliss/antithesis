@@ -12,8 +12,8 @@ export default function App() {
         const res = await fetch(MODULE_URL + "?v=" + Date.now(), { cache: "no-store" });
         if (!res.ok) throw new Error("HTTP " + res.status);
         const source = await res.text();
-        const module = await import("data:text/javascript;charset=utf-8," + encodeURIComponent(source));
-        if (alive) setState({ status: "success", message: module.PHASE0_PAYLOAD?.message || "Module loaded.", payload: module.PHASE0_PAYLOAD });
+        const module = new Function("React", source)(React);
+        if (alive) setState({ status: "success", message: module?.message || "Module loaded.", payload: module });
       } catch (error) {
         if (alive) setState({ status: "error", message: String(error?.message || error) });
       }
