@@ -54,17 +54,25 @@ function loadScript(src, globalName) {
 function prepareSource(source) {
   let code = source;
 
+  // Antithesis is authored as a Canvas/React source module.
+  // Strip the two imports before executing through new Function().
   code = code.replace(
-    ,
-    (_, hooks) => "const {" + hooks + "} = React;"
+    /import React,?\\s*\\{[\\s\\S]*?\\}\\s*from\\s*["']react["'];?/,
+    (match) => {
+      const hooks = match.match(/\\{([\\s\\S]*?)\\}/)?.[1] || "";
+      return "const {" + hooks + "} = React;";
+    }
   );
 
   code = code.replace(
-    /import\s*\{([\s\S]*?)\}\s*from\s*["']lucide-react["'];?/,
-    (_, icons) => "const {" + icons + "} = LucideReact;"
+    /import\\s*\\{[\\s\\S]*?\\}\\s*from\\s*["']lucide-react["'];?/,
+    (match) => {
+      const icons = match.match(/\\{([\\s\\S]*?)\\}/)?.[1] || "";
+      return "const {" + icons + "} = LucideReact;";
+    }
   );
 
-  code = code.replace(/export\s+default\s+/g, "");
+  code = code.replace(/export\\s+default\\s+/g, "");
 
   return code;
 }
