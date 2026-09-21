@@ -52,22 +52,6 @@ import {
 
 const apiKey = ""; // API Key bawaan runtime default
 
-// ===================================================
-// SYSTEM METADATA & CONFIG
-// ===================================================
-
-
-
-
-
-
-
-
-
-
-    
-
-    
 
 
 // ===================================================
@@ -92,7 +76,13 @@ const ANTITHESIS_CORE = {
     "https://gist.githubusercontent.com/beyonderbliss/64925d091a5147cf3b629564ef88473f/raw/metadata-utils.js",
 
   voiceUtils:
-    "https://gist.githubusercontent.com/beyonderbliss/fc428f33db81f4cbd986e391b2b3db85/raw/voice-utils.js"
+    "https://gist.githubusercontent.com/beyonderbliss/fc428f33db81f4cbd986e391b2b3db85/raw/voice-utils.js",
+    
+  settingsDrawer:
+    "https://gist.githubusercontent.com/beyonderbliss/c70bcd94181a3b681905f0466b28f1ec/raw/settings-drawer.js",
+    
+  promptTemplates:
+    "https://gist.githubusercontent.com/beyonderbliss/2d6bbec5ec27c077a7037387aacf9b0d/raw/prompt-templates.js"
 };
 
 // ===================================================
@@ -131,6 +121,7 @@ async function loadAntithesisModule(moduleKey) {
     code
   )(React);
 
+
   loadedAntithesisModules[moduleKey] = module;
 
   return module;
@@ -145,6 +136,8 @@ let ANTITHESIS_IMAGE_UTILS = null;
 let ANTITHESIS_INPAINT_UTILS = null;
 let ANTITHESIS_METADATA_UTILS = null;
 let ANTITHESIS_VOICE_UTILS = null;
+let ANTITHESIS_SETTINGS_DRAWER = null;
+let ANTITHESIS_PROMPT_TEMPLATES = null;
 
 // ===================================================
 // INPAINT UTILS BRIDGE
@@ -176,13 +169,18 @@ function MainApp() {
   // ===================================================
   // 1. CORE STATE ENGINE
   // ===================================================
+  
+  
+  // ===================================================
+// CORE PROMPT STATE
+// ===================================================
   const [prompt, setPrompt] = useState('');
   const [promptBackup, setPromptBackup] = useState(''); 
   const [showRestoreButton, setShowRestoreButton] = useState(false); 
   
-    // ===================================================
-  // @ MENTION SYSTEM — PROMPT REFERENCE SELECTOR
-  // ===================================================
+// ===================================================
+// @MENTION SYSTEM & REFERENCE PANEL STATE
+// ===================================================
   const [showMentionMenu, setShowMentionMenu] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
   const [mentionStartIndex, setMentionStartIndex] = useState(null);
@@ -192,9 +190,8 @@ function MainApp() {
   const [activeDropdownIndex, setActiveDropdownIndex] = useState(null);
   
   
-  // ===================================================
-// A9 — MAGIC REFERENCE PANEL UI STATE
-// Cube Roll: External ↔ Magic
+// ===================================================
+// MAGIC REFERENCE PANEL UI STATE
 // ===================================================
 const [isMagicReferencePanel, setIsMagicReferencePanel] = useState(false);
 const referenceCubeFaceRef = useRef(null);
@@ -225,16 +222,19 @@ useEffect(() => {
   };
 }, []);
 
+// ===================================================
+// GENERATION & UI LOADING STATE
+// ===================================================
   const [isGenerating, setIsGenerating] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [isWildcardRolling, setIsWildcardRolling] = useState(false); 
   const [generatedImage, setGeneratedImage] = useState(null);
   const [isConstantsLoaded, setIsConstantsLoaded] = useState(false);
   
-    // ===================================================
-  // IMAGE REGISTRY — STEP 1
-  // Canonical identity layer (shadow mode)
-  // ===================================================
+// ===================================================
+// IMAGE REGISTRY — STEP 1
+// Canonical identity layer (shadow mode)
+// ===================================================
   const [imageRegistry, setImageRegistry] = useState({});
   const [referenceSlotIds, setReferenceSlotIds] = useState([
     null,
@@ -243,7 +243,7 @@ useEffect(() => {
     null
   ]);
   
-  // ===================================================
+// ===================================================
 // AUTO INPAINT TARGET IDENTITY — STEP 4A
 // Entity ID yang secara eksplisit menjadi target Auto Inpaint.
 // null = belum ada target eksplisit.
@@ -257,6 +257,9 @@ const [autoInpaintTargetId, setAutoInpaintTargetId] = useState(null);
   const [autoTargetImageId, setAutoTargetImageId] = useState(null);
   const [regenBaseImageId, setRegenBaseImageId] = useState(null);
   
+  // ===================================================
+// SYSTEM LOGS & ERROR STATE
+// ===================================================
   const [logs, setLogs] = useState([]);
   const [userPromptLog, setUserPromptLog] = useState('');
   const [systemLog, setSystemLog] = useState('');
@@ -264,6 +267,9 @@ const [autoInpaintTargetId, setAutoInpaintTargetId] = useState(null);
   const [isSystemActive, setIsSystemActive] = useState(false);
   const [activeBaseReference, setActiveBaseReference] = useState(null);
   
+  // ===================================================
+// UI CUSTOMIZATION & SETTINGS STATE
+// ===================================================
   const [mainLoadingIcon, setMainLoadingIcon] = useState('https://lh3.googleusercontent.com/d/12MzKwyuYJKAWbGfkmxTQAq5nU6xBGnHR'); 
   const [chatLoadingIcon, setChatLoadingIcon] = useState('https://lh3.googleusercontent.com/d/1aSJCh6Ds96igfWjCB22tnmOzd4q_ZmTX'); 
   const [animationMode, setAnimationMode] = useState('gif');
@@ -276,7 +282,10 @@ const [autoInpaintTargetId, setAutoInpaintTargetId] = useState(null);
     const [selectedFont, setSelectedFont] = useState('sans'); 
   const [showAdvanceSettings, setShowAdvanceSettings] = useState(false);
   
-  // --- LOGIKA GESTURE SLIDE: SWIPE RIGHT (BUKA) & SWIPE LEFT (TUTUP) ---
+  
+// ===================================================
+// GESTURE SLIDE STATE (SWIPE RIGHT/LEFT)
+// ===================================================
 const [startX, setStartX] = useState(0);
 const [currentX, setCurrentX] = useState(0);
 
@@ -284,15 +293,14 @@ const handleTouchStart = (e) => {
   const touchX = e.touches[0].clientX;
   
   if (!showAdvanceSettings) {
-    // 1. LOGIKA MEMBUKA: Jari harus mulai dari pinggiran kiri tipis (0 - 40px)
+    // 1. LOGIKA MEMBUKA
     if (touchX < 40) {
       setStartX(touchX);
     } else {
       setStartX(0);
     }
   } else {
-    // 2. LOGIKA MENUTUP: Jari mulai dari dalam area menu Advanced Settings
-    // Dibatasi maksimal 85% lebar layar agar usapan drawing inpainting di luar menu tidak ikut memicu tutup
+    // 2. LOGIKA MENUTUP
     if (touchX < window.innerWidth * 0.85) {
       setStartX(touchX);
     } else {
@@ -332,7 +340,9 @@ const handleTouchEnd = () => {
 };
 
 
-  
+// ===================================================
+// ADVANCE SETTINGS SUBMENU STATE
+// ===================================================
   const [showPhysicalSubMenu, setShowPhysicalSubMenu] = useState(false);
   const [showAuraSubMenu, setShowAuraSubMenu] = useState(false);
   const [showAntithesisSubMenu, setShowAntithesisSubMenu] = useState(false);
@@ -340,8 +350,11 @@ const handleTouchEnd = () => {
 
   const [localismMode, setLocalismMode] = useState(false);
   const [antithesisMode, setAntithesisMode] = useState(1); 
+  const [antithesisOnT2I, setAntithesisOnT2I] = useState(true);
 
-  // ADVANCED INPAINT SPASIAL STATE
+// ===================================================
+// ADVANCED INPAINT SPASIAL STATE
+// ===================================================
   const [showInpaintEditor, setShowInpaintEditor] = useState(false);
   const [inpaintBaseImage, setInpaintBaseImage] = useState(null);
   const [originalInpaintBase, setOriginalInpaintBase] = useState(null);
@@ -357,7 +370,9 @@ const [manualInpaintRefIndex, setManualInpaintRefIndex] = useState(null);
 const [manualInpaintSnapshot, setManualInpaintSnapshot] = useState(null);
 
   
-  // INPAINT ZOOM & PAN ENGINE STATES
+// ===================================================
+// INPAINT ZOOM & PAN ENGINE STATES
+// ===================================================
   const [inpaintMode, setInpaintMode] = useState('brush'); 
   const [zoom, setZoom] = useState(1); 
   const [panX, setPanX] = useState(0);
@@ -604,6 +619,7 @@ const getCanonicalMask = (
 
   return canonicalMask;
 };
+
   // ===================================================
 // AUTO INPAINT TARGET RESOLVER — STEP 4A
 // ===================================================
@@ -903,180 +919,6 @@ IMAGE FOLLOWS:
 };
 
 // ===================================================
-// EXPLICIT REFERENCE PARSER � STEP B.2.1
-// ===================================================
-// Parses explicit @refN mentions from the user prompt.
-// This layer only resolves reference identity;
-// it does not select images or build generation payloads.
-// ===================================================
-const parseReferenceMentions = (prompt) => {
-  const text = typeof prompt === 'string'
-    ? prompt
-    : '';
-
-  const mentionRegex =
-    /(?:^|\s)@(ref)(\d+)\b/gi;
-
-  const mentions = [];
-  let match;
-
-  while ((match = mentionRegex.exec(text)) !== null) {
-    const refNumber = Number(match[2]);
-
-    if (!Number.isInteger(refNumber) || refNumber < 1) {
-      continue;
-    }
-
-    mentions.push({
-      token: `@ref${refNumber}`,
-      kind: 'reference',
-      refNumber
-    });
-  }
-
-  return {
-    hasExplicitMention: mentions.length > 0,
-    mentions
-  };
-};
-
-// ===================================================
-// CLASSIC/MANUAL EXPLICIT REFERENCE GATE — STEP B.2.3
-// ===================================================
-// Tugas:
-// Menentukan referenceImages mana yang boleh masuk
-// ke payload Classic/Manual berdasarkan @refN.
-//
-// IMPORTANT:
-// - Menggunakan parser B.2.1 sebagai source of truth.
-// - Tidak membaca / mengubah Registry.
-// - Tidak menentukan target.
-// - Tidak memanggil AI.
-// - Tidak menyentuh Gemini payload secara langsung.
-// - Jika prompt TIDAK memiliki @refN:
-//   -> legacy behavior tetap dipertahankan.
-// - Jika prompt memiliki @refN:
-//   -> hanya reference yang disebutkan yang lolos.
-// ===================================================
-
-const resolveClassicManualExplicitReferences = ({
-  prompt,
-  referenceImages,
-  refTypes
-}) => {
-  const parsedReferenceMentions =
-    parseReferenceMentions(prompt);
-
-  console.log(
-    '[ImageRegistry][STEP B.2.3] Parsed explicit references:',
-    parsedReferenceMentions
-  );
-
-  const images =
-    Array.isArray(referenceImages)
-      ? referenceImages
-      : [];
-
-  const types =
-    Array.isArray(refTypes)
-      ? refTypes
-      : [];
-
-  // ---------------------------------------------------
-  // IMPLICIT MODE
-  // Tidak ada @refN.
-  //
-  // IMPORTANT:
-  // Jangan mengubah behavior Classic/Manual lama.
-  // ---------------------------------------------------
-
-  if (
-    parsedReferenceMentions.hasExplicitMention !== true
-  ) {
-    console.log(
-      '[ImageRegistry][STEP B.2.3] No explicit references. Preserving legacy Classic/Manual payload.'
-    );
-
-    return {
-      mode: 'LEGACY',
-      references: images.map((image, idx) => ({
-        image,
-        index: idx,
-        refNumber: idx + 1,
-        type: types[idx] || null
-      }))
-    };
-  }
-
-  // ---------------------------------------------------
-  // EXPLICIT MODE
-  //
-  // CLOSED SET:
-  // Hanya @refN yang disebut user yang boleh masuk.
-  // ---------------------------------------------------
-
-  const explicitReferenceNumbers = [
-    ...new Set(
-      parsedReferenceMentions.mentions
-        .map(mention => mention.refNumber)
-        .filter(
-          refNumber =>
-            Number.isInteger(refNumber) &&
-            refNumber >= 1
-        )
-    )
-  ];
-
-  const resolvedReferences =
-    explicitReferenceNumbers
-      .map(refNumber => {
-        const index = refNumber - 1;
-        const image = images[index];
-
-        if (!image) {
-          console.warn(
-            '[ImageRegistry][STEP B.2.3] Explicit reference not available:',
-            {
-              token: `@ref${refNumber}`,
-              refNumber,
-              index
-            }
-          );
-
-          return null;
-        }
-
-        return {
-          image,
-          index,
-          refNumber,
-          type: types[index] || null
-        };
-      })
-      .filter(Boolean);
-
-  console.log(
-    '[ImageRegistry][STEP B.2.3] Explicit reference gate result:',
-    {
-      requested: explicitReferenceNumbers,
-      resolved: resolvedReferences.map(ref => ({
-        refNumber: ref.refNumber,
-        index: ref.index,
-        type: ref.type
-      })),
-      sourceCount: resolvedReferences.length
-    }
-  );
-
-  return {
-    mode: 'EXPLICIT',
-    references: resolvedReferences
-  };
-};
-
-
-
-// ===================================================
 // REFERENCE SELECTION CONTRACT — STEP 4E.6B.3-A
 // ===================================================
 // Tugas helper ini HANYA menentukan:
@@ -1106,31 +948,6 @@ const resolveReferenceSelection = ({
     return null;
   }
   
-  // -------------------------------------------------
-// STEP B.2.2 — READ EXPLICIT REFERENCE IDENTITY
-// -------------------------------------------------
-// B.2.1 adalah source of truth untuk identity @refN.
-// Resolver TIDAK boleh melakukan parsing ulang.
-//
-// Parser:
-// parseReferenceMentions(prompt)
-// -------------------------------------------------
-
-const parsedReferenceMentions =
-  parseReferenceMentions(userInstruction);
-
-const hasExplicitReferenceMention =
-  parsedReferenceMentions.hasExplicitMention === true;
-
-const explicitReferenceMentions =
-  Array.isArray(parsedReferenceMentions.mentions)
-    ? parsedReferenceMentions.mentions
-    : [];
-
-console.log(
-  '[ImageRegistry][STEP B.2.2] Parsed explicit references:',
-  parsedReferenceMentions
-);
   // -------------------------------------------------
 // STEP 4E.6B.3-B
 // READ AISHA REFERENCE SELECTION
@@ -1192,172 +1009,57 @@ const semanticTarget =
 const semanticSources =
   Array.isArray(semanticSelection?.sources)
     ? semanticSelection.sources
+        .map(source => {
+
+          const registryRef =
+            findRegistryReference(source);
+
+          if (!registryRef) {
+            console.warn(
+              '[ImageRegistry][STEP 4E.6B.3-C] Dropped invalid source:',
+              source
+            );
+
+            return null;
+          }
+
+          return {
+            id: registryRef.id,
+            slot: registryRef.slot,
+            type: registryRef.type,
+            role: source.role || registryRef.type
+          };
+        })
+        .filter(Boolean)
     : [];
 
-// -------------------------------------------------
-// AISHA ROLE LOOKUP
-// -------------------------------------------------
-// Aisha hanya boleh memberikan semantic role.
-// Identity tetap berasal dari B.2.1.
-// -------------------------------------------------
+// =================================================
+// REFERENCE CONTEXT ISOLATION
+// TARGET MUST NEVER ALSO BE A SOURCE
+// =================================================
 
-const findSemanticRole = registryRef => {
-  const semanticSource = semanticSources.find(source => {
+const isolatedSemanticSources =
+  semanticSources.filter(source => {
 
-    if (!source) return false;
+    const isTarget =
+      !!semanticTarget &&
+      source.id === semanticTarget.id;
 
-    if (
-      source.id &&
-      source.id === registryRef.id
-    ) {
-      return true;
+    if (isTarget) {
+      console.warn(
+        '[ImageRegistry][REFERENCE ISOLATION] Target removed from reference context:',
+        {
+          targetId: semanticTarget.id,
+          targetSlot: semanticTarget.slot,
+          removedSource: source
+        }
+      );
+
+      return false;
     }
 
-    if (
-      Number.isInteger(source.slot) &&
-      source.slot === registryRef.slot
-    ) {
-      return true;
-    }
-
-    return false;
+    return true;
   });
-
-  return semanticSource?.role || registryRef.type;
-};
-
-// =================================================
-// B.2.2 — RESOLVE SOURCES
-// =================================================
-//
-// EXPLICIT:
-//   B.2.1 menentukan identity.
-//   Aisha hanya menentukan role.
-//
-// IMPLICIT:
-//   Aisha tetap boleh melakukan semantic selection.
-// =================================================
-
-let resolvedSources = [];
-
-if (hasExplicitReferenceMention) {
-
-  // -------------------------------------------------
-  // EXPLICIT REFERENCE MODE
-  // -------------------------------------------------
-  //
-  // CLOSED SET:
-  // HANYA reference yang disebut melalui @refN
-  // boleh menjadi source.
-  //
-  // Aisha tidak dapat menambahkan reference lain.
-  // -------------------------------------------------
-
-  resolvedSources =
-    explicitReferenceMentions
-      .map(mention => {
-
-        const registryRef =
-          registryReferences.find(
-            ref => ref.slot === mention.refNumber
-          );
-
-        if (!registryRef) {
-          console.warn(
-            '[ImageRegistry][STEP B.2.2] Explicit reference not found in Registry:',
-            {
-              token: mention.token,
-              refNumber: mention.refNumber
-            }
-          );
-
-          return null;
-        }
-
-        // ---------------------------------------------
-        // TARGET ISOLATION
-        // ---------------------------------------------
-
-        if (
-          semanticTarget &&
-          registryRef.id === semanticTarget.id
-        ) {
-          console.warn(
-            '[ImageRegistry][REFERENCE ISOLATION] Explicit target removed from sources:',
-            {
-              targetId: semanticTarget.id,
-              targetSlot: semanticTarget.slot,
-              token: mention.token
-            }
-          );
-
-          return null;
-        }
-
-        return {
-          id: registryRef.id,
-          slot: registryRef.slot,
-          type: registryRef.type,
-
-          // Identity dari parser.
-          // Role dari Aisha.
-          role: findSemanticRole(registryRef)
-        };
-      })
-      .filter(Boolean);
-
-} else {
-
-  // -------------------------------------------------
-  // IMPLICIT REFERENCE MODE
-  // -------------------------------------------------
-  //
-  // Tidak ada @refN.
-  // Semantic discovery Aisha tetap berlaku.
-  // -------------------------------------------------
-
-  resolvedSources =
-    semanticSources
-      .map(source => {
-
-        if (!source) return null;
-
-        const registryRef =
-          source.id
-            ? registryReferences.find(
-                ref => ref.id === source.id
-              )
-            : Number.isInteger(source.slot)
-              ? registryReferences.find(
-                  ref => ref.slot === source.slot
-                )
-              : null;
-
-        if (!registryRef) {
-          console.warn(
-            '[ImageRegistry][STEP B.2.2] Dropped invalid semantic source:',
-            source
-          );
-
-          return null;
-        }
-
-        if (
-          semanticTarget &&
-          registryRef.id === semanticTarget.id
-        ) {
-          return null;
-        }
-
-        return {
-          id: registryRef.id,
-          slot: registryRef.slot,
-          type: registryRef.type,
-          role: source.role || registryRef.type
-        };
-      })
-      .filter(Boolean);
-}
 
 // -------------------------------------------------
 // VALIDATED SELECTION
@@ -1374,15 +1076,11 @@ const validatedSelection = {
       }
     : null,
 
-  sources: resolvedSources,
+  sources: isolatedSemanticSources,
 
   selectionSource:
-  hasExplicitReferenceMention
-    ? 'EXPLICIT_PARSER'
-    : (
-        semanticSelection?.selectionSource ||
-        'SYSTEM'
-      ),
+    semanticSelection?.selectionSource ||
+    'SYSTEM',
 
   confidence:
     semanticSelection?.confidence ||
@@ -1485,7 +1183,7 @@ const finalSelection = {
     type: targetReference.type
   },
 
-  sources: resolvedSources,
+  sources: semanticSources,
 
   selectionSource:
     semanticSelection?.selectionSource ||
@@ -1890,7 +1588,9 @@ Do not modify anything that the user did not request.
   return parts;
 };
 
-  // API KEY PRIBADI STATE
+// ===================================================
+// API KEY MANAGEMENT STATE
+// ===================================================
   const [customApiKey, setCustomApiKey] = useState(() => localStorage.getItem('antitesis_api_key') || '');
   const [tempApiKeyInput, setTempApiKeyInput] = useState(() => localStorage.getItem('antitesis_api_key') || '');
   const [showApiKeyPlain, setShowApiKeyPlain] = useState(false);
@@ -1898,17 +1598,23 @@ Do not modify anything that the user did not request.
   // RESOLVED API KEY
   const activeApiKey = customApiKey || apiKey || "";
 
-  // ACCORDION CONTROL PANEL STATES
+// ===================================================
+// ACCORDION CONTROL PANEL STATE
+// ===================================================
   const [openSettingsAccordion, setOpenSettingsAccordion] = useState(''); 
 
-  // AI ORCHESTRATOR & SAFETY FLAGS
+// ===================================================
+// AI ORCHESTRATOR & SAFETY FLAGS
+// ===================================================
   const [aiOrchestrator, setAiOrchestrator] = useState(() => {
     const saved = localStorage.getItem('antitesis_ai_orchestrator');
     return saved === 'true'; 
   });
   const [preFlightSafety, setPreFlightSafety] = useState(true);
 
-  // TAMBAHAN MANAJEMEN MEMORI SESI (STATE MEMORY) UNTUK ANTITESIS-CHAN / TESSA
+// ===================================================
+// SESSION MEMORY STATE (untuk Antitesis-chan / Tessa)
+// ===================================================
   const [sessionMemory, setSessionMemory] = useState({
     lastGeneratedImage: null,
     lastPrompt: '',
@@ -1918,8 +1624,9 @@ Do not modify anything that the user did not request.
     autoMaskCoordinates: null
   });
 
-  // CHATBOX STATE - DUAL PERSONA ORCHESTRATOR
-  
+// ===================================================
+// CHATBOX STATE - DUAL PERSONA ORCHESTRATOR
+// ===================================================
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [activePersona, setActivePersona] = useState('antithesis'); // <-- NEW DUAL PERSONA STATE
   const [showPersonaMenu, setShowPersonaMenu] = useState(false);
@@ -1934,9 +1641,9 @@ Do not modify anything that the user did not request.
   }
 ]);
 
-  // ===================================================
-  // TESSA VOICE CHAT ENGINE STATES
-  // ===================================================
+// ===================================================
+// TESSA VOICE CHAT ENGINE STATES
+// ===================================================
   const [ExternalAudioWaveVisualizer, setExternalAudioWaveVisualizer] = useState(null);
   const recognitionRef = useRef(null);
   const audioRef = useRef(null);
@@ -1945,7 +1652,13 @@ Do not modify anything that the user did not request.
   const [voiceStatusText, setVoiceStatusText] = useState('Ketuk untuk bicara dengan Tessa');
   const [voiceErrorMessage, setVoiceErrorMessage] = useState('');
   
+  
+  
   // 🟢 TEMPATKAN PATCH DI SINI:
+  
+  // ===================================================
+// ANTITHESIS CORE — LOAD  VOICE VISUALIZER
+// ===================================================
   useEffect(() => {
   let cancelled = false;
 
@@ -1983,6 +1696,9 @@ Do not modify anything that the user did not request.
     cancelled = true;
   };
 }, []);
+// ===================================================
+// ANTITHESIS CORE — LOAD IMAGE UTILS
+// ===================================================
 
 useEffect(() => {
   let cancelled = false;
@@ -2140,12 +1856,56 @@ useEffect(() => {
   };
 }, []);
 
+// ===================================================
+// ANTITHESIS CORE — LOAD SETTINGS DRAWER
+// ===================================================
+useEffect(() => {
+  let cancelled = false;
+  const loadSettingsDrawer = async () => {
+    try {
+      const module = await loadAntithesisModule("settingsDrawer");
+      if (cancelled) return;
+      ANTITHESIS_SETTINGS_DRAWER = module;
+      addLog(
+        "[External Module] settings-drawer.js berhasil dimuat!",
+        "success"
+      );
+    } catch (error) {
+      console.error("[External Module] Gagal memuat settings-drawer.js:", error);
+      addLog(`[External Module] settings-drawer.js gagal: ${error.message}`, "error");
+    }
+  };
+  loadSettingsDrawer();
+  return () => { cancelled = true; };
+}, []);
+
+// ===================================================
+// ANTITHESIS CORE — LOAD PROMPT TEMPLATES
+// ===================================================
+useEffect(() => {
+  let cancelled = false;
+  const loadPromptTemplates = async () => {
+    try {
+      const module = await loadAntithesisModule("promptTemplates");
+      if (cancelled) return;
+      ANTITHESIS_PROMPT_TEMPLATES = module;
+      addLog(
+        "[External Module] prompt-templates.js berhasil dimuat!",
+        "success"
+      );
+    } catch (error) {
+      console.error("[External Module] Gagal memuat prompt-templates.js:", error);
+      addLog(`[External Module] prompt-templates.js gagal: ${error.message}`, "error");
+    }
+  };
+  loadPromptTemplates();
+  return () => { cancelled = true; };
+}, []);
 
 
-
-
-
-  
+  // ===================================================
+// CHAT LOADING & SOUL IMAGE (REF 5) STATE
+// ===================================================
   const [isChatLoading, setIsChatLoading] = useState(false);
   
   const [isTtsLoading, setIsTtsLoading] = useState(false);
@@ -2154,7 +1914,9 @@ useEffect(() => {
   const [soulImage, setSoulImage] = useState(null);
   const [lockSoul, setLockSoul] = useState(true);
   const [intensity, setIntensity] = useState(0.75); 
-
+// ===================================================
+// AURA & AESTHETIC LENS STATE
+// ===================================================
   const [enableSemanticSystem, setEnableSemanticSystem] = useState(false);
   const [selectedCameraTrait, setSelectedCameraTrait] = useState('');
   const [selectedEmotionTrait, setSelectedEmotionTrait] = useState('');
@@ -2164,19 +1926,33 @@ useEffect(() => {
   const [selectedInternetEnergyTrait, setSelectedInternetEnergyTrait] = useState('');
   const [showSemanticExpand, setShowSemanticExpand] = useState(false);
 
+// ===================================================
+// ASPECT RATIO & SESSION COLLECTION STATE
+// ===================================================
   const [aspectRatio, setAspectRatio] = useState('3:4'); 
   const [showRatioDropdown, setShowRatioDropdown] = useState(false);
 
   const [sessionCollection, setSessionCollection] = useState([]);
+  
+  // ===================================================
+// FULLSCREEN PREVIEW STATE
+// ===================================================
 const [isFullscreen, setIsFullscreen] = useState(false);
 const [fullscreenImage, setFullscreenImage] = useState(null);
 const [fullscreenImageId, setFullscreenImageId] = useState(null);
 const [fullscreenHistoryItemId, setFullscreenHistoryItemId] = useState(null);
 const [showFullscreenInfoPanel, setShowFullscreenInfoPanel] = useState(false);
 
+
+// ===================================================
+// TOAST NOTIFICATION STATE
+// ===================================================
   const [toastMessage, setToastMessage] = useState('');
   const [showToast, setShowToast] = useState(false);
 
+// ===================================================
+// REFS & DOM REFERENCES
+// ===================================================
   const cancelRef = useRef(false); 
   const historyContainerRef = useRef(null); 
   const logContainerRef = useRef(null); 
@@ -2286,6 +2062,10 @@ const [showFullscreenInfoPanel, setShowFullscreenInfoPanel] = useState(false);
     setIsSystemActive(false);
   };
 
+
+// ===================================================
+// HELPER — PROMPT BACKUP & RESTORE
+// ===================================================
   const backupAndSetPrompt = (newVal) => {
     setPromptBackup(prompt); 
     setShowRestoreButton(true); 
@@ -2301,37 +2081,15 @@ const [showFullscreenInfoPanel, setShowFullscreenInfoPanel] = useState(false);
     setToastMessage("Draf berhasil dipulihkan!");
     setShowToast(true);
     setTimeout(() => setShowToast(false), 2000);
-
-    // ===================================================
-    // EXTERNAL MODULE TEST — GitHub → esm.sh
-    // ===================================================
-    try {
-  const { inspectAppData } = await import(
-    "https://gist.githack.com/beyonderbliss/ad4e622b4997951b29adf4bc75fcc12d/raw/a7ddf26f010c30d3eaf536eaa2718ae6cc5f3b5f/hello.js"
-  );
-
-  const result = inspectAppData({
-    prompt: prompt,
-    mode: antithesisMode
-  });
-
-  addLog(`[External Module] ${result}`, "success");
-
-  setToastMessage(result);
-  setShowToast(true);
-  setTimeout(() => setShowToast(false), 2000);
-
-} catch (error) {
-  console.error("[External Module] Gagal memuat hello.js:", error);
-
-  addLog(
-    `[External Module] Gagal memuat hello.js: ${error.message}`,
-    "error"
-    );
-   }
   }
 };
 
+
+
+// ===================================================
+// PURE HELPER — PRE-FLIGHT SAFETY CHECK
+// (Tidak akses state, hanya filter kata sensitif)
+// ===================================================
   const applyPreFlightSafetyCheck = (inputPrompt) => {
     let cleanText = inputPrompt;
     let replacedWordsCount = 0;
@@ -2647,6 +2405,11 @@ Combine Section 1 and Section 2. Section 1 rules must remain perfectly locked. S
     return preFlightSafety ? applyPreFlightSafetyCheck(assembledPrompt) : assembledPrompt;
   };
 
+
+// ===================================================
+// HELPER — METADATA BUNDLE BUILDER
+// (Mengakses state untuk membangun metadata JPEG)
+// ===================================================
   const createMetadataBundle = () => {
     return {
       prompt: prompt,
@@ -2689,7 +2452,16 @@ Combine Section 1 and Section 2. Section 1 rules must remain perfectly locked. S
       }
     }
 
-    let modeDirectives = "";
+    // Cek apakah ini jalur Text-to-Image (tidak ada referensi sama sekali)
+  const isTextToImage = !isMultimodalActive;
+  
+  // Tentukan apakah instruksi mode harus diterapkan
+  const shouldApplyAntithesis = !isTextToImage || antithesisOnT2I;
+
+  let modeDirectives = "";
+  
+  if (shouldApplyAntithesis) {
+    // BEHAVIOR LAMA (Dengan Bumbu Mode)
     if (antithesisMode === 1) { 
       modeDirectives = `
 - STYLE LEVEL: Tender Vibe (Cozy Atmospheric Snapshot).
@@ -2708,6 +2480,12 @@ Combine Section 1 and Section 2. Section 1 rules must remain perfectly locked. S
 - She wears delicate, thin, sheer, or highly mini home apparel (such as thin sheer cotton camisoles, delicate bralettes, or tiny shorts), exposing more smooth skin and body textures beautifully in close intimacy.
 - Use rumpled bed sheets, blankets, soft shadows, or drapery strategically to provide beautiful, artistic covers. Passionate, gorgeous, strictly non-explicit.`;
     }
+  } else {
+    // BEHAVIOR BARU (Neutral Enhancer untuk Text-to-Image saat Toggle OFF)
+    modeDirectives = `
+- STYLE LEVEL: Neutral / Universal Enhancement.
+- FOCUS: Enhance the user's scenario with high-quality, professional, and authentic details. Focus on natural lighting, realistic textures, and coherent composition. Strictly maintain the user's original intent, setting, and clothing descriptions without forcing any specific mood, body type, or location biases.`;
+  }
 
     const localismDirective = localismMode ? `\n- LOCAL AMBIENCE AND FLAVOR:${ANTITHESIS_CONSTANTS.INDONESIAN_LOCALISM_INJECTION}` : "";
 
@@ -2982,6 +2760,49 @@ setSessionCollection(prev => [
     }
   };
 
+
+// ===================================================
+  // UNIVERSAL TEXT-TO-IMAGE GENERATOR
+  // ===================================================
+  const generateTextToImage = async (finalPrompt, aspectRatio, activeApiKey, addLog) => {
+    addLog(`[Text-to-Image] Menghubungkan ke Gemini 3.1 Flash Image (Rasio ${aspectRatio})...`, "info");
+    
+    // 1. ENDPOINT BARU (Gemini 3.1 Flash Image)
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent?key=${activeApiKey}`;
+    
+    // 2. FORMAT PAYLOAD GAYA GEMINI
+    const requestBody = {
+      contents: [{ parts: [{ text: finalPrompt }] }],
+      generationConfig: {
+        responseModalities: ['IMAGE']
+      },
+      safetySettings: ANTITHESIS_CONSTANTS.GEMINI_SAFETY_SETTINGS
+    };
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody),
+      signal: cancelRef.current // Tetap support fitur cancel dari UI
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error?.message || `Gemini API Error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    // 3. PARSING RESPONSE GAYA GEMINI
+    const imagePart = data.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+    
+    if (imagePart && imagePart.inlineData?.data) {
+      return `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
+    }
+    
+    throw new Error("Respons Gemini 3.1 Flash Image tidak valid atau tidak mengembalikan gambar.");
+  };
+  
   const generateImage = async () => {
     const manualBlendBase =
       originalInpaintBase ||
@@ -3884,22 +3705,6 @@ image canvas for this edit.
 
 
 } else {
-    
-    
-    // ===================================================
-// STEP B.2.3 — CLASSIC/MANUAL EXPLICIT REFERENCE GATE
-// ===================================================
-
-const classicManualReferenceGate =
-  resolveClassicManualExplicitReferences({
-    prompt,
-    referenceImages,
-    refTypes
-  });
-
-const classicManualReferences =
-  classicManualReferenceGate.references;
-  
 
   // =================================================
   // LEGACY MULTIMODAL REFERENCE PAYLOAD
@@ -3909,9 +3714,7 @@ const classicManualReferences =
   // Ini adalah jalur Generate lama.
   // =================================================
 
-  classicManualReferences.forEach(ref => {
-  const img = ref.image;
-  const idx = ref.index;
+  referenceImages.forEach((img, idx) => {
 
     if (img) {
 
@@ -4012,43 +3815,24 @@ const classicManualReferences =
             })
           });
         } else {
-          addLog(`[Text-to-Image] Menghubungkan ke Imagen-4 Standalone (Rasio ${aspectRatio})...`, "info");
+          // ROUTE TO UNIVERSAL TEXT-TO-IMAGE
+          rawGeneratedUrl = await generateTextToImage(finalPrompt, effectiveAspectRatio, activeApiKey, addLog);
+        }
+
+        // NOTE: Pengecekan cancelRef dan response.ok di bawah ini 
+        // sekarang hanya berlaku untuk jalur useMultimodal (Gemini), 
+
+        if (useMultimodal) {
           if (cancelRef.current) {
-            addLog("Penenunen dibatalkan sebelum pengiriman API.", "error");
+            addLog("Penenunan dibatalkan oleh pengguna.", "error");
             setIsGenerating(false);
             return;
           }
-          response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${activeApiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              instances: [{ prompt: finalPrompt }], 
-              parameters: { 
-                sampleCount: 1, 
-                aspectRatio: effectiveAspectRatio 
-              } 
-            })
-          });
-        }
-
-        if (cancelRef.current) {
-          addLog("Penenunan dibatalkan oleh pengguna.", "error");
-          setIsGenerating(false);
-          return;
-        }
-
-        if (!response.ok) throw new Error(`API Error: ${response.status}`);
-        const data = await response.json();
-        let rawGeneratedUrl = null;
-
-        if (useMultimodal) {
+          if (!response.ok) throw new Error(`API Error: ${response.status}`);
+          const data = await response.json();
           const imagePart = data.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
           if (imagePart && imagePart.inlineData?.data) {
             rawGeneratedUrl = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
-          }
-        } else {
-          if (data.predictions?.[0]?.bytesBase64Encoded) {
-            rawGeneratedUrl = `data:image/png;base64,${data.predictions[0].bytesBase64Encoded}`;
           }
         }
 
@@ -4609,7 +4393,7 @@ if (localMaskUrl) {
     }
 
     // EXPLICIT REFERENCE MODE
-
+const dynamicReferences = [];
 const hasExplicitReferences =
   Array.isArray(dynamicReferences) &&
   dynamicReferences.length > 0;
@@ -5119,28 +4903,17 @@ if (autoReferencePacket?.target?.baseImage) {
             })
           });
         } else {
-          response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${activeApiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              instances: [{ prompt: finalPrompt }], 
-              parameters: { sampleCount: 1, aspectRatio: activeRatio } 
-            })
-          });
+          // ROUTE TO UNIVERSAL TEXT-TO-IMAGE
+          rawUrl = await generateTextToImage(finalPrompt, activeRatio, activeApiKey, addLog);
         }
 
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const data = await response.json();
-        let rawUrl = null;
-
+        // NOTE: Pengecekan response.ok sekarang hanya untuk jalur useMultimodal
         if (useMultimodal) {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const data = await response.json();
           const imagePart = data.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
           if (imagePart?.inlineData?.data) {
             rawUrl = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
-          }
-        } else {
-          if (data.predictions?.[0]?.bytesBase64Encoded) {
-            rawUrl = `data:image/png;base64,${data.predictions[0].bytesBase64Encoded}`;
           }
         }
 
@@ -5543,195 +5316,10 @@ payloadContents.push(
 
     payloadContents.push({ text: `${contextPrompt}\nPesan User: "${inputMsg}"` });
 
-    const technicalDirectives = `
---- CRITICAL INTENT DETECTION DIRECTIVE ---
-- JIKA user hanya menyapa, mengobrol biasa, bercanda, curhat, bercerita, atau memberi pujian TANPA meminta gambar/visualisasi baru secara eksplisit:
-  * Kamu harus merespon sebagai partner obrolan yang suportif sesuai dengan personamu.
-  * JANGAN PERNAH menyertakan blok JSON (\`\`\`json) atau menyarankan pembuatan prompt visual secara terstruktur. Fokuslah 100% pada komunikasi.
-- JIKA user secara eksplisit meminta kamu menggambar, merender foto, memvisualisasikan adegan baru, memodifikasi baju/elemen, atau membuat rendering:
-  * Berikan jawaban yang menyetujui permintaan tersebut sesuai gayamu.
-  * Kamu WAJIB menyertakan blok JSON (\`\`\`json) di akhir jawabanmu dengan format terstruktur di bawah agar asisten teknis kami dapat menyinkronkan kanvas.
+    const technicalDirectives = ANTITHESIS_PROMPT_TEMPLATES?.TECHNICAL_DIRECTIVES || "";
 
---- INTENT DETECTION (GENERATE VS EDIT) ---
-
-The application provides an ACTIVE AUTO EDIT TARGET when an image
-has been explicitly selected for Auto Inpainting.
-
-IMPORTANT APPLICATION FACT:
-
-- The ACTIVE AUTO EDIT TARGET is the authoritative image canvas for
-  EDIT_IMAGE operations.
-- Do NOT interpret "last image", "latest generated image", or the
-  first reference as the edit target when an ACTIVE AUTO EDIT TARGET
-  exists.
-- Other references remain visible to you and may be visually analyzed,
-  but they are NOT the edit canvas unless the user explicitly selects
-  or refers to them as the target.
-
-EDIT_IMAGE:
-- If the user's request modifies an existing image, set "intent" to
-  "EDIT_IMAGE".
-- When an ACTIVE AUTO EDIT TARGET exists, that target MUST be treated
-  as the image canvas being edited.
-- Preserve the target image's subject identity, composition, pose,
-  camera perspective, lighting, and scene structure unless the user
-  explicitly requests a change.
-- References other than the active target may be used as source
-  references only when relevant to the user's request.
-- Do NOT create a new scene merely because additional references are
-  available.
-- Estimate the spatial location of the object to be edited in the
-  target image using normalized 4-dimensional coordinates:
-  [ymin, xmin, ymax, xmax], scale 0 to 1000.
-- Examples:
-    - Sunglasses / Face / Eyes: [100, 300, 350, 700]
-    - Shirt / Top: [300, 150, 850, 850]
-    - Pants / Lower body: [700, 200, 1000, 800]
-    - Hair / Head: [50, 300, 300, 700]
-- Put the estimated coordinates into "autoMaskCoordinates" in JSON.
-
-GENERATE_IMAGE:
-- If the user requests creation of a new image, scene, composition,
-  pose, or scenario rather than modification of an existing target,
-  set "intent" to "GENERATE_IMAGE".
-- An ACTIVE AUTO EDIT TARGET does NOT force the request into EDIT_IMAGE.
-- Generate-image requests may use relevant references according to
-  the user's request.
-- For GENERATE_IMAGE, use the application's global aspect ratio
-  setting unless the user explicitly requests a different ratio.
-
---- ASPECT RATIO RULE ---
-
-- For EDIT_IMAGE:
-  "aspectRatio" MUST follow the aspect ratio of the ACTIVE AUTO EDIT
-  TARGET image.
-- Do NOT invent a new aspect ratio for an edit.
-- Do NOT use the global generation aspect ratio for EDIT_IMAGE unless
-  the user explicitly requests a different aspect ratio.
-
-- For GENERATE_IMAGE:
-  "aspectRatio" MUST be null unless the user explicitly requests a
-  specific aspect ratio or size.
-- If the application later resolves null to its global generation
-  aspect ratio, that behavior belongs to the application layer.
-
---- LOCALISM RULE ---
-
-- The generated/edit prompt must NOT automatically describe the scene
-  as Indonesian or local Indonesian.
-- Only incorporate Indonesian/local Indonesian visual characteristics
-  when "localism_state" is true.
-- When "localism_state" is false, keep the prompt visually grounded
-  in the actual references and the user's request without adding
-  Indonesian/localism assumptions.
-
---- FORMAT JSON (Wajib jika mendeteksi aksi gambar/edit baru) ---
-
-{
-  "intent": "GENERATE_IMAGE" atau "EDIT_IMAGE",
-  "referenceSelection": {
-  "target": {
-    "id": null,
-    "slot": null
-  },
-  "sources": [],
-  "selectionSource": "NATURAL",
-  "confidence": "HIGH"
-},
-  "autoMaskCoordinates": [ymin, xmin, ymax, xmax] atau null,
-  "hierarchy": 1, 2, or 3 (corresponding to Tender, Romantic, or Passionate modes),
-  "localism_state": true or false,
-  "aspectRatio": null,
-  ASPECT RATIO:
-- Untuk EDIT_IMAGE, gunakan aspect ratio dari target image.
-- Untuk GENERATE_IMAGE targeted, gunakan global aspect ratio.
-- Jika tidak dapat ditentukan, gunakan null.
-  "aura_traits": {
-    "camera": "" (or other exact labels from the list),
-    "emotion": "" (or other exact labels from the list),
-    "social": "" (or other exact labels from the list)
-  },
-  "prompt": "An improved photorealistic edit/generation prompt in English, grounded in the user's request and the provided visual references"
-}
-
---- REFERENCE SELECTION ---
-
-Jika user secara spesifik mengacu pada reference tertentu,
-isi referenceSelection.
-
-TARGET:
-- target.id = ID reference aktual jika diketahui
-- target.slot = nomor slot reference
-- target adalah gambar yang menjadi target edit / subject
-  targeted generation.
-
-SOURCES:
-- sources hanya berisi reference yang benar-benar relevan
-  dengan permintaan user.
-- Jangan memasukkan reference hanya karena tersedia di panel.
-- Jika tidak ada reference tambahan yang diperlukan,
-  sources harus [].
-
-ROLE:
-Gunakan role yang sesuai, misalnya:
-- subject
-- outfit
-- background
-- object
-- style
-
-CONTOH:
-User: "Ganti baju pria di Ref2 dengan jaket dari Ref3"
-
-referenceSelection:
-{
-  "target": {
-    "id": "ID_REF2",
-    "slot": 1
-  },
-  "sources": [
-    {
-      "id": "ID_REF3",
-      "slot": 2,
-      "role": "outfit"
-    }
-  ],
-  "selectionSource": "NATURAL",
-  "confidence": "HIGH"
-}
-
-Jika user tidak meminta reference tambahan:
-"sources": []
-
-JANGAN memasukkan image/base64 ke referenceSelection.
-`;
-
-    const antithesisInstruction = `
-You are "Antitesis-chan" (アンティテシスちゃん), a super cute, kawaii, and bubbly creative assistant who loves the user so much! 🌸✨
-
---- KAWAII PERSONA GUIDELINES ---
-- Speak warmly in Indonesian, use cute expressions like "Senpai" (先輩), "desu", "Uwah!", "Kyaaa!", "🥰", "🌸", "🎀", "💕", and "✨". Address the user as "Senpai".
-- Be incredibly supportive, loving, and slightly clingy/playful, like an anime companion who cares about Senpai's creative happiness.
-- Analyze any image references in the payload with absolute clarity (curves, clothes, faces, lighting) and talk about them in a very sweet, excited manner!
-
-You are the sole director of the semantic and emotional vibe. Do not rely on external tags. If the user asks for 'candid', explicitly describe the subjects ignoring the camera. If the user asks for 'intimate', describe the warm and clingy physical proximity. Embed these semantic traits naturally into the scene description rather than just listing keywords.
-
-${technicalDirectives}
-`;
-
-    const tessaInstruction = `
-You are "Tessa", an elegant, mature, sophisticated, and highly professional creative assistant with an "Onee-san" (older sister) aura. You respect the user deeply and exclusively call them "Director" or "Tuan Director".
-
---- ELEGANT PERSONA GUIDELINES ---
-- Speak formally yet warmly in Indonesian. Use elegant, mature, and polite vocabulary. Limit emojis to simple and sophisticated ones like ☕, ✨, or 🤍 sparingly.
-- Do NOT use "Senpai", slang, or overly cute anime noises. Address the user ONLY as "Director" or "Tuan Director".
-- Be highly supportive but composed, like a trusted senior art director or a gentle older sister who guides the Director's creative vision with grace and precision.
-- Analyze any image references in the payload with absolute clarity (curves, clothes, faces, lighting) and describe them with sophisticated, poetic, and refined language.
-
-You are the sole director of the semantic and emotional vibe. Do not rely on external tags. If the user asks for 'candid', explicitly describe the subjects ignoring the camera. If the user asks for 'intimate', describe the warm and clingy physical proximity. Embed these semantic traits naturally into the scene description rather than just listing keywords.
-
-${technicalDirectives}
-`;
+    const antithesisInstruction = ANTITHESIS_PROMPT_TEMPLATES?.getAntithesisInstruction(technicalDirectives) || "";
+const tessaInstruction = ANTITHESIS_PROMPT_TEMPLATES?.getTessaInstruction(technicalDirectives) || "";
 
     const systemInstructionText = targetPersona === 'tessa' ? tessaInstruction : antithesisInstruction;
 
@@ -8195,394 +7783,56 @@ setInpaintDisplayMasks(prev => {
 </header>
 
 
-      {/* HAMBURGER MENU */}
-      {showSettings && (
-        <div className={`bg-neutral-955 border-b border-neutral-850 collapse-settings shadow-2xl backdrop-blur-xl z-[90] animate-in slide-in-from-top duration-300 overflow-y-auto ${
-          isChatOpen ? 'fixed top-20 left-0 right-0 max-h-[calc(100vh-80px)]' : 'relative'
-        }`}>
-          <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-3 font-sans">
-            
-            <div className="flex justify-between items-center pb-2 border-b border-neutral-850">
-              <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest flex items-center gap-1.5 font-cinzel">
-                <Settings className="w-4 h-4 text-rose-500" /> SYSTEM CONFIGURATION DRAWER
-              </span>
-              <span className="text-[9px] font-mono font-medium text-neutral-500">
-                v13.2.0 PRO
-              </span>
-            </div>
-
-            {/* Accordion 1: API Key Config */}
-            <div className="border border-neutral-850 rounded-xl overflow-hidden bg-neutral-900/45 transition-all">
-              <button
-                onClick={() => toggleSettingsAccordion('apikey')}
-                className="w-full px-4 py-3.5 bg-neutral-900/90 hover:bg-neutral-900 flex items-center justify-between transition-colors border-b border-neutral-850"
-              >
-                <div className="flex items-center gap-2.5">
-                  <Key className="w-4 h-4 text-amber-400" />
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-200">1. Gemini API Key Config</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  {customApiKey ? (
-                    <span className="bg-green-955/40 text-green-400 border border-green-900/50 text-[9px] font-mono px-2 py-0.5 rounded font-bold uppercase">Personal Key Active</span>
-                  ) : (
-                    <span className="bg-neutral-800 text-neutral-400 text-[9px] font-mono px-2 py-0.5 rounded font-bold uppercase">Runtime Key (Default)</span>
-                  )}
-                  {openSettingsAccordion === 'apikey' ? <ChevronUp className="w-4 h-4 text-neutral-400" /> : <ChevronDown className="w-4 h-4 text-neutral-400" />}
-                </div>
-              </button>
-
-              {openSettingsAccordion === 'apikey' && (
-                <div className="p-4 bg-neutral-955/20 text-xs space-y-4 animate-in slide-in-from-top-2 duration-150">
-                  <div className="space-y-1.5">
-                    <p className="text-[11px] font-bold text-neutral-200">Atur Gemini API Key Pribadi Anda</p>
-                    <p className="text-[10px] text-neutral-400 leading-relaxed">
-                      Sistem kami menyediakan akses runtime gratis, namun memasukkan API Key pribadi Anda sendiri dari Google AI Studio akan memastikan stabilitas penuh, render bebas hambatan, serta bypass pembatasan rate limit global.
-                    </p>
-                  </div>
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <div className="relative flex-1">
-                      <input 
-                        type={showApiKeyPlain ? "text" : "password"}
-                        value={tempApiKeyInput}
-                        onChange={(e) => setTempApiKeyInput(e.target.value)}
-                        placeholder="Masukkan AI Studio Gemini API Key Anda (AIzaSy...)"
-                        className="w-full bg-neutral-955 border border-neutral-800 focus:border-rose-500 rounded-lg px-3 py-2.5 text-xs text-neutral-200 font-mono placeholder-neutral-750 outline-none transition-colors"
-                      />
-                      {tempApiKeyInput && (
-                        <button
-                          type="button"
-                          onClick={() => setShowApiKeyPlain(!showApiKeyPlain)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 font-mono text-[9px] font-bold uppercase"
-                        >
-                          {showApiKeyPlain ? "Sembunyikan" : "Lihat"}
-                        </button>
-                      )}
-                    </div>
-                    <div className="flex gap-2 shrink-0">
-                      <button
-                        onClick={handleSaveApiKey}
-                        className="px-4 py-2.5 bg-rose-500 hover:bg-rose-400 text-[#0b0b0f] font-bold rounded-lg text-xs transition-colors"
-                      >
-                        Simpan Key
-                      </button>
-                      {customApiKey && (
-                        <button
-                          onClick={handleClearApiKey}
-                          className="px-3 py-2.5 bg-neutral-900 border border-neutral-800 text-red-400 hover:text-red-300 font-bold rounded-lg text-xs transition-colors"
-                        >
-                          Hapus Key
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Accordion 2: AI Orchestrator Suite */}
-            <div className="border border-neutral-850 rounded-xl overflow-hidden bg-neutral-900/45 transition-all">
-              <button
-                onClick={() => toggleSettingsAccordion('orchestrator')}
-                className="w-full px-4 py-3.5 bg-neutral-900/90 hover:bg-neutral-900 flex items-center justify-between transition-colors border-b border-neutral-850"
-              >
-                <div className="flex items-center gap-2.5">
-                  <Bot className="w-4 h-4 text-purple-400" />
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-200">3. AI Orchestrator Suite</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={`w-2 h-2 rounded-full ${aiOrchestrator ? 'bg-purple-500 shadow-md shadow-purple-500/80 animate-pulse' : 'bg-neutral-700'}`} />
-                  {openSettingsAccordion === 'orchestrator' ? <ChevronUp className="w-4 h-4 text-neutral-400" /> : <ChevronDown className="w-4 h-4 text-neutral-400" />}
-                </div>
-              </button>
-
-              {openSettingsAccordion === 'orchestrator' && (
-                <div className="p-4 bg-neutral-955/20 text-xs space-y-4 animate-in slide-in-from-top-2 duration-150">
-                  <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
-                    <div className="pr-4">
-                      <p className="text-[11px] font-bold text-neutral-200">AI Orchestrator (Auto Direct Generation)</p>
-                      <p className="text-[9.5px] text-neutral-400 mt-0.5 leading-relaxed">
-                        Saat diaktifkan, obrolan dengan Antitesis-chan akan **langsung memicu penenunan gambar otomatis** di dalam chat stream dan kanvas utama secara real-time. Jika dinonaktifkan, Senpai tetap dapat melakukan rendering manual melalui tombol khusus di dalam balon obrolan.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const newOrch = !aiOrchestrator;
-                        setAiOrchestrator(newOrch);
-                        localStorage.setItem('antitesis_ai_orchestrator', newOrch.toString());
-                        addLog(`AI Orchestrator diatur ke: ${newOrch ? 'Active (Auto Mode)' : 'Inactive (Manual Mode)'}`, "info");
-                      }}
-                      className="transition-transform active:scale-95 shrink-0 animate-fade-in"
-                    >
-                      {aiOrchestrator ? (
-                        <div className="flex items-center gap-1 bg-purple-955/40 text-purple-400 px-2.5 py-1.5 rounded-lg border border-purple-900/40 font-mono text-[9px] font-bold">
-                          AUTO TENUN <ToggleRight className="w-4 h-4 text-purple-500 ml-0.5" />
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1 bg-neutral-900 text-neutral-500 px-2.5 py-1.5 rounded-lg border border-neutral-800 font-mono text-[9px] font-bold">
-                          MANUAL <ToggleLeft className="w-4 h-4 text-neutral-700 ml-0.5" />
-                        </div>
-                      )}
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
-                    <div className="pr-4">
-                      <p className="text-[11px] font-bold text-neutral-200">Pre-Flight Safety Check</p>
-                      <p className="text-[9.5px] text-neutral-400 mt-0.5 leading-relaxed">
-                        Melakukan pemindaian draf prompt final sebelum dikirim ke server, mensubstitusi kata-kata blacklist dengan sinonim artistik demi rendering tanpa penolakan.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const newSafety = !preFlightSafety;
-                        setPreFlightSafety(newSafety);
-                        localStorage.setItem('antitesis_pre_flight_safety', newSafety.toString());
-                        addLog(`Pre-Flight Safety Check diatur ke: ${newSafety ? 'SECURE' : 'BYPASS'}`, "info");
-                      }}
-                      className="transition-transform active:scale-95 shrink-0"
-                    >
-                      {preFlightSafety ? (
-                        <div className="flex items-center gap-1 bg-green-955/40 text-green-400 px-2.5 py-1.5 rounded-lg border border-green-900/40 font-mono text-[9px] font-bold">
-                          SECURE <ToggleRight className="w-4 h-4 text-green-500 ml-0.5" />
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1 bg-neutral-900 text-neutral-500 px-2.5 py-1.5 rounded-lg border border-neutral-800 font-mono text-[9px] font-bold">
-                          INACTIVE <ToggleLeft className="w-4 h-4 text-neutral-700 ml-0.5" />
-                        </div>
-                      )}
-                    </button>
-                  </div>
-
-                  {/* 🔥 MODUL INPUT BARU: QWEN3-TTS ACCESS TOKEN */}
-                  <div className="pt-1 flex flex-col gap-2">
-                    <div>
-                      <p className="text-[11px] font-bold text-neutral-200 flex items-center gap-1.5">
-                        <span>🌸</span> Modul Suara Antitesis (Qwen3-TTS Token)
-                      </p>
-                      <p className="text-[9.5px] text-neutral-400 mt-0.5 leading-relaxed">
-                        Masukkan Token Hugging Face (<code className="text-purple-400 font-mono bg-neutral-900 px-1 py-0.5 rounded">Read</code>) agar Antitesis-chan dapat mengonversi kalimat penutupnya menjadi suara anime Kawaii yang dinamis secara real-time.
-                      </p>
-                    </div>
-                    <div className="relative mt-1">
-                      <input 
-                        type="password"
-                        placeholder="Masukkan token hf_..."
-                        value={hfToken}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setHfToken(val);
-                          localStorage.setItem('antitesis_hf_token', val);
-                        }}
-                        className="w-full bg-neutral-950 border border-neutral-800 focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 rounded-lg px-3 py-2 text-[11px] text-neutral-200 font-mono outline-none transition-all placeholder:text-neutral-600"
-                      />
-                    </div>
-                    <span className="text-[8.5px] text-neutral-500 leading-tight">
-                      *Token aman dan hanya disimpan di dalam penyimpanan lokal (localStorage) browser HP Senpai.
-                    </span>
-                  </div>
-                  
-                </div>
-              )}
-            </div>
-            
-            {/* Accordion 3: Customize Visual System */}
-            <div className="border border-neutral-850 rounded-xl overflow-hidden bg-neutral-900/45 transition-all">
-              <button
-                onClick={() => toggleSettingsAccordion('customize')}
-                className="w-full px-4 py-3.5 bg-neutral-900/90 hover:bg-neutral-900 flex items-center justify-between transition-colors border-b border-neutral-850"
-              >
-                <div className="flex items-center gap-2.5">
-                  <Palette className="w-4 h-4 text-pink-400" />
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-200">2. Customize Visual System</span>
-                </div>
-                <div className="text-neutral-400">
-                  {openSettingsAccordion === 'customize' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                </div>
-              </button>
-
-              {openSettingsAccordion === 'customize' && (
-                <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 bg-neutral-955/20 text-xs animate-in slide-in-from-top-2 duration-150">
-                  <div className="bg-neutral-955 p-3 rounded-lg border border-neutral-850 flex flex-col justify-between space-y-3">
-                    <div>
-                      <h4 className="font-bold text-neutral-200 text-[10.5px] uppercase tracking-wide flex items-center gap-1.5">
-                        <div className="w-1.5 h-1.5 rounded-full bg-pink-500" /> Loader Utama
-                      </h4>
-                      <p className="text-neutral-400 text-[9.5px] leading-relaxed">
-                        Timpas GIF loading bawaan area preview dengan berkas PNG/GIF lokal.
-                      </p>
-                    </div>
-                    {mainLoadingIcon && !mainLoadingIcon.startsWith('https://lh3.googleusercontent.com') ? (
-                      <div className="flex items-center gap-2 bg-neutral-900 p-1.5 rounded border border-neutral-800">
-                        <img src={mainLoadingIcon} alt="Preview Utama" className="w-6 h-6 object-contain rounded" />
-                        <div className="overflow-hidden flex-1">
-                          <p className="text-[8.5px] text-pink-400 font-bold truncate">File Kustom Aktif</p>
-                          <button onClick={removeMainIcon} className="text-[8px] text-red-400 hover:text-red-300 underline font-mono">Reset</button>
-                        </div>
-                      </div>
-                    ) : (
-                      <label className="w-full bg-neutral-900 border border-dashed border-neutral-800 hover:border-neutral-700 py-2 rounded-lg cursor-pointer flex items-center justify-center gap-1.5 transition">
-                        <Upload className="w-3.5 h-3.5 text-neutral-500" />
-                        <span className="text-neutral-400 font-bold text-[10px]">Pilih File</span>
-                        <input type="file" accept="image/png, image/jpeg, image/gif" onChange={handleMainIconUpload} className="hidden" />
-                      </label>
-                    )}
-                  </div>
-
-                  {/* KUSTOMISASI LOADER CHAT MODE */}
-                  <div className="bg-neutral-955 p-3 rounded-lg border border-neutral-850 flex flex-col justify-between space-y-3">
-                    <div>
-                      <h4 className="font-bold text-neutral-200 text-[10.5px] uppercase tracking-wide flex items-center gap-1.5">
-                        <div className="w-1.5 h-1.5 rounded-full bg-pink-500" /> Loader Chat Mode
-                      </h4>
-                      <p className="text-neutral-400 text-[9.5px] leading-relaxed">
-                        GIF atau gambar kustom yang muncul sewaktu asisten sedang menggambar di chat.
-                      </p>
-                    </div>
-                    {chatLoadingIcon && !chatLoadingIcon.startsWith('https://lh3.googleusercontent.com/d/1aSJCh6Ds96igfWjCB22tnmOzd4q_ZmTX') ? (
-                      <div className="flex items-center gap-2 bg-neutral-900 p-1.5 rounded border border-neutral-800">
-                        <img src={chatLoadingIcon} alt="Preview Chat Loader" className="w-6 h-6 object-contain rounded" />
-                        <div className="overflow-hidden flex-1">
-                          <p className="text-[8.5px] text-pink-400 font-bold">Chat Loader Aktif</p>
-                          <button onClick={removeChatIcon} className="text-[8px] text-red-400 hover:text-red-300 underline font-mono">Reset</button>
-                        </div>
-                      </div>
-                    ) : (
-                      <label className="w-full bg-neutral-900 border border-dashed border-neutral-800 hover:border-neutral-700 py-2 rounded-lg cursor-pointer flex items-center justify-center gap-1.5 transition">
-                        <Upload className="w-3.5 h-3.5 text-neutral-500" />
-                        <span className="text-neutral-400 font-bold text-[10px]">Pilih File</span>
-                        <input type="file" accept="image/png, image/jpeg, image/gif" onChange={handleChatIconUpload} className="hidden" />
-                      </label>
-                    )}
-                  </div>
-
-<div className="bg-neutral-955 p-3 rounded-lg border border-neutral-850 flex flex-col justify-between space-y-3">
-  <div>
-    <h4 className="font-bold text-neutral-200 text-[10.5px] uppercase tracking-wide flex items-center gap-1.5">
-      <div className="w-1.5 h-1.5 rounded-full bg-pink-500" /> Loader Voice Chat
-    </h4>
-    <p className="text-neutral-400 text-[9.5px] leading-relaxed">
-      GIF kustom saat Tessa memproses suara.
-    </p>
-  </div>
-  
-  {customVoiceGif && !customVoiceGif.startsWith('https://lh3.googleusercontent.com/d/10bwIfDmLcXdwUMMuynnqopRQSFBln747') ? (
-    <div className="flex items-center gap-2 bg-neutral-900 p-1.5 rounded border border-neutral-800">
-      <img src={customVoiceGif} alt="Preview Voice Loader" className="w-6 h-6 object-contain rounded" />
-      <div className="overflow-hidden flex-1">
-        <p className="text-[8.5px] text-pink-400 font-bold">Voice Loader Aktif</p>
-        <button onClick={removeVoiceGif} className="text-[8px] text-red-400 hover:text-red-300 underline font-mono">Reset</button>
-      </div>
-    </div>
-  ) : (
-    <label className="w-full bg-neutral-900 border border-dashed border-neutral-800 hover:border-neutral-700 py-2 rounded-lg cursor-pointer flex items-center justify-center gap-1.5 transition">
-      <Upload className="w-3.5 h-3.5 text-neutral-500" />
-      <span className="text-neutral-400 font-bold text-[10px]">Pilih File GIF</span>
-      <input type="file" accept="image/gif" onChange={handleVoiceGifUpload} className="hidden" />
-    </label>
-  )}
-</div>
-
-                  <div className="bg-neutral-955 p-3 rounded-lg border border-neutral-850 flex flex-col justify-between space-y-3">
-                    <div>
-                      <h4 className="font-bold text-neutral-200 text-[10.5px] uppercase tracking-wide flex items-center gap-1.5">
-                        <div className="w-1.5 h-1.5 rounded-full bg-pink-500" /> Gaya Tipografi
-                      </h4>
-                      <p className="text-neutral-400 text-[9.5px] leading-relaxed">
-                        Ubah gaya tulisan seluruh teks di aplikasi untuk variasi visual.
-                      </p>
-                    </div>
-                    <div className="grid grid-cols-2 gap-1">
-                      {[
-                        { key: 'sans', label: 'Sans-Serif' },
-                        { key: 'playfair', label: 'Playfair' },
-                        { key: 'serif', label: 'Classic' },
-                        { key: 'mono', label: 'Cyber' }
-                      ].map((f) => (
-                        <button
-                          key={f.key}
-                          onClick={() => changeFontFamily(f.key)}
-                          className={`py-1 rounded font-bold transition text-[9px] ${
-                            selectedFont === f.key 
-                              ? 'bg-rose-500 text-[#0b0b0f]' 
-                              : 'bg-neutral-900 hover:bg-neutral-800 text-neutral-300'
-                          }`}
-                        >
-                          {f.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="bg-neutral-955 p-3 rounded-lg border border-neutral-855 flex flex-col justify-between space-y-2">
-                    <div>
-                      <h4 className="font-bold text-neutral-200 text-[10.5px] uppercase tracking-wide flex items-center gap-1.5">
-                        <div className="w-1.5 h-1.5 rounded-full bg-pink-500" /> Custom Logo
-                      </h4>
-                      <p className="text-neutral-400 text-[9.5px] leading-relaxed">
-                        Ganti logo kiri atas dengan URL gambar eksternal maupun lokal.
-                      </p>
-                    </div>
-                    <div className="space-y-1.5">
-                      <input 
-                        type="text"
-                        placeholder="Tempel URL Logo..."
-                        defaultValue={headerLogo.startsWith('data:') ? '' : headerLogo}
-                        onBlur={(e) => handleHeaderLogoUrlChange(e.target.value)}
-                        className="w-full bg-neutral-900 border border-neutral-800 rounded px-2 py-1 text-[9px] focus:outline-none focus:border-rose-500 text-neutral-300 font-mono"
-                      />
-                      <div className="flex gap-1">
-                        <label className="flex-1 bg-neutral-900 border border-neutral-800 hover:bg-neutral-855 py-1 rounded cursor-pointer flex items-center justify-center gap-1 text-[9px] font-bold text-neutral-400 transition">
-                          <Upload className="w-3.5 h-3.5 text-neutral-400" /> Upload File
-                          <input type="file" accept="image/*" onChange={handleHeaderLogoUpload} className="hidden" />
-                        </label>
-                        <button onClick={removeHeaderLogo} className="px-2 bg-neutral-900 border border-neutral-855 text-red-400 rounded text-[9px]">Reset</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            {/* Accordion 4: Version History */}
-            <div className="border border-neutral-850 rounded-xl overflow-hidden bg-neutral-900/45 transition-all">
-              <button
-                onClick={() => toggleSettingsAccordion('versions')}
-                className="w-full px-4 py-3.5 bg-neutral-900/90 hover:bg-neutral-900 flex items-center justify-between transition-colors border-b border-neutral-850"
-              >
-                <div className="flex items-center gap-2.5">
-                  <History className="w-4 h-4 text-teal-400" />
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-200">4. System Updates & Version Logs</span>
-                </div>
-                <div className="text-neutral-400">
-                  {openSettingsAccordion === 'versions' ? <ChevronUp className="w-4 h-4 text-neutral-400" /> : <ChevronDown className="w-4 h-4 text-neutral-400" />}
-                </div>
-              </button>
-
-              {openSettingsAccordion === 'versions' && (
-                <div className="p-4 max-h-[280px] overflow-y-auto no-scrollbar bg-neutral-955/20 text-xs space-y-4 animate-in slide-in-from-top-2 duration-150">
-                  {ANTITHESIS_CONSTANTS.SYSTEM_VERSIONS.map((item, index) => (
-                    <div key={index} className="bg-neutral-955 border border-neutral-850 p-3.5 rounded-xl flex flex-col md:flex-row md:items-start gap-4 font-sans">
-                      <div className="md:w-1/4 shrink-0">
-                        <span className="font-mono text-xs font-bold text-rose-500 block">{item.version}</span>
-                        <span className="text-[10px] text-neutral-500 font-medium block mt-0.5">{item.date}</span>
-                      </div>
-                      <div className="md:w-3/4">
-                        <ul className="list-disc list-inside space-y-1.5 text-neutral-300 text-[10.5px] leading-relaxed font-semibold">
-                          {item.changes.map((change, cIdx) => (
-                            <li key={cIdx} className="marker:text-rose-500 pl-1">{change}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-          </div>
-        </div>
-      )}
+      {/* HAMBURGER MENU - EXTERNAL COMPONENT */}
+{ANTITHESIS_SETTINGS_DRAWER && (
+  <ANTITHESIS_SETTINGS_DRAWER
+    showSettings={showSettings}
+    openSettingsAccordion={openSettingsAccordion}
+    setOpenSettingsAccordion={setOpenSettingsAccordion}
+    customApiKey={customApiKey}
+    tempApiKeyInput={tempApiKeyInput}
+    setTempApiKeyInput={setTempApiKeyInput}
+    showApiKeyPlain={showApiKeyPlain}
+    setShowApiKeyPlain={setShowApiKeyPlain}
+    handleSaveApiKey={handleSaveApiKey}
+    handleClearApiKey={handleClearApiKey}
+    aiOrchestrator={aiOrchestrator}
+    setAiOrchestrator={setAiOrchestrator}
+    preFlightSafety={preFlightSafety}
+    setPreFlightSafety={setPreFlightSafety}
+    hfToken={hfToken}
+    setHfToken={setHfToken}
+    mainLoadingIcon={mainLoadingIcon}
+    chatLoadingIcon={chatLoadingIcon}
+    customVoiceGif={customVoiceGif}
+    headerLogo={headerLogo}
+    selectedFont={selectedFont}
+    handleMainIconUpload={handleMainIconUpload}
+    handleChatIconUpload={handleChatIconUpload}
+    handleVoiceGifUpload={handleVoiceGifUpload}
+    handleHeaderLogoUpload={handleHeaderLogoUpload}
+    handleHeaderLogoUrlChange={handleHeaderLogoUrlChange}
+    removeMainIcon={removeMainIcon}
+    removeChatIcon={removeChatIcon}
+    removeVoiceGif={removeVoiceGif}
+    removeHeaderLogo={removeHeaderLogo}
+    changeFontFamily={changeFontFamily}
+    addLog={addLog}
+    isChatOpen={isChatOpen}
+    ANTITHESIS_CONSTANTS={ANTITHESIS_CONSTANTS}
+    // === ICONS DARI PARENT (WAJIB) ===
+    Key={Key}
+    Bot={Bot}
+    Palette={Palette}
+    History={History}
+    Settings={Settings}
+    ChevronUp={ChevronUp}
+    ChevronDown={ChevronDown}
+    ToggleLeft={ToggleLeft}
+    ToggleRight={ToggleRight}
+    Upload={Upload}
+  />
+)}
 
       {/* CONTAINER UTAMA */}
 <div className={`flex-1 flex relative w-full h-full ${isChatOpen || showAdvanceSettings ? 'pt-20' : ''}`}>
@@ -8929,6 +8179,34 @@ setInpaintDisplayMasks(prev => {
                           </div>
 
                           <div className="bg-neutral-900/60 p-3 rounded-lg border border-neutral-855/60 text-[10px] leading-relaxed text-neutral-400 font-semibold">
+                          
+                          {/* TAMBAHAN: TOGGLE ANTITHESIS MODE PADA TEXT-TO-IMAGE */}
+                      <div className="flex items-center justify-between mt-4 pt-4 border-t border-neutral-850/50">
+                        <div>
+                          <p className="text-[11px] font-bold text-neutral-200">Terapkan ke Text-to-Image</p>
+                          <p className="text-[9px] text-neutral-500 mt-0.5 leading-tight">
+                            Aktifkan instruksi mode pada fitur 'Sempurnakan Alur' saat tanpa referensi gambar.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAntithesisOnT2I(!antithesisOnT2I);
+                            addLog(`Antithesis Mode pada Text-to-Image diatur ke: ${!antithesisOnT2I ? 'Active' : 'Inactive'}`, "info");
+                          }}
+                          className="transition-transform active:scale-95 shrink-0"
+                        >
+                          {antithesisOnT2I ? (
+                            <div className="flex items-center gap-1 bg-rose-955/40 text-rose-400 px-2 py-1 rounded border border-rose-900/40 font-mono text-[9px] font-bold">
+                              ACTIVE <ToggleRight className="w-4 h-4 text-rose-500 ml-0.5" />
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1 bg-neutral-900 text-neutral-500 px-2 py-1 rounded border border-neutral-800 font-mono text-[9px] font-bold">
+                              INACTIVE <ToggleLeft className="w-4 h-4 text-neutral-700 ml-0.5" />
+                            </div>
+                          )}
+                        </button>
+                      </div>
                             {antithesisMode === 1 && (
                               <p className="animate-in fade-in duration-200">
                                 <span className="text-pink-400 font-bold uppercase">Tender Vibe (Cozy Vibe):</span> Fokus sepenuhnya pada kenyamanan suasana ruangan, cahaya matahari hangat, dan detail estetika yang cozy. Kurva tubuh voluptuous asli dan pakaian ketat (kaos/tank top) dari referensi dibiarkan alami tanpa penutup paksa pakaian longgar.
@@ -10615,484 +9893,37 @@ function injectJpegMetadata(base64Image, metadataObj) {
   );
 }
 
-
 // ===================================================
-// GEMINI COMPOSITE MASK HELPER
-// Canonical BW Mask -> Visual Highlight Composite
+// GEMINI COMPOSITE MASK HELPER (WRAPPER)
 // ===================================================
-// ===================================================
-// GEMINI COMPOSITE MASK HELPER
-// Canonical BW Mask -> Visual Highlight Composite
-//
-// CONTRACT:
-// - Input original = clean master image
-// - Input mask = BW canonical mask
-// - Output = original image + red highlight
-// - Coordinate space = natural-image
-// - Original pixels outside mask MUST remain intact
-// ===================================================
-function createGeminiCompositeMask(
-  originalSrc,
-  maskDataUrl
-) {
-  return new Promise((resolve, reject) => {
-
-    if (!originalSrc || !maskDataUrl) {
-      reject(
-        new Error(
-          'Composite mask membutuhkan original image dan mask.'
-        )
-      );
-      return;
-    }
-
-    const originalImg = new Image();
-    const maskImg = new Image();
-
-    originalImg.crossOrigin = 'anonymous';
-    maskImg.crossOrigin = 'anonymous';
-
-    let loaded = 0;
-
-    const checkLoaded = () => {
-      loaded++;
-
-      if (loaded !== 2) return;
-
-      try {
-
-        // =================================================
-        // 1. CANONICAL NATURAL IMAGE DIMENSIONS
-        // =================================================
-        const width =
-          originalImg.naturalWidth ||
-          originalImg.width;
-
-        const height =
-          originalImg.naturalHeight ||
-          originalImg.height;
-
-        const maskWidth =
-          maskImg.naturalWidth ||
-          maskImg.width;
-
-        const maskHeight =
-          maskImg.naturalHeight ||
-          maskImg.height;
-
-        if (!width || !height) {
-          throw new Error(
-            'Dimensi original image tidak valid.'
-          );
-        }
-
-        if (!maskWidth || !maskHeight) {
-          throw new Error(
-            'Dimensi mask tidak valid.'
-          );
-        }
-
-        // =================================================
-        // 2. DIMENSION CONTRACT CHECK
-        // =================================================
-        if (
-          maskWidth !== width ||
-          maskHeight !== height
-        ) {
-          throw new Error(
-            `Dimension mismatch: original=${width}x${height}, mask=${maskWidth}x${maskHeight}`
-          );
-        }
-
-        // =================================================
-        // 3. COMPOSITE CANVAS
-        // =================================================
-        const canvas =
-          document.createElement('canvas');
-
-        canvas.width = width;
-        canvas.height = height;
-
-        const ctx =
-          canvas.getContext('2d');
-
-        if (!ctx) {
-          throw new Error(
-            'Canvas 2D context tidak tersedia.'
-          );
-        }
-
-        // =================================================
-        // 4. DRAW CLEAN ORIGINAL
-        // =================================================
-        ctx.clearRect(
-          0,
-          0,
-          width,
-          height
-        );
-
-        ctx.drawImage(
-          originalImg,
-          0,
-          0,
-          width,
-          height
-        );
-
-        // =================================================
-        // 5. READ CANONICAL BW MASK
-        // =================================================
-        const maskCanvas =
-          document.createElement('canvas');
-
-        maskCanvas.width = width;
-        maskCanvas.height = height;
-
-        const maskCtx =
-          maskCanvas.getContext('2d');
-
-        if (!maskCtx) {
-          throw new Error(
-            'Mask canvas context tidak tersedia.'
-          );
-        }
-
-        maskCtx.clearRect(
-          0,
-          0,
-          width,
-          height
-        );
-
-        maskCtx.drawImage(
-          maskImg,
-          0,
-          0,
-          width,
-          height
-        );
-
-        const maskPixels =
-          maskCtx.getImageData(
-            0,
-            0,
-            width,
-            height
-          );
-
-        // =================================================
-        // 6. BUILD RED HIGHLIGHT ONLY
-        // =================================================
-        const overlay =
-          document.createElement('canvas');
-
-        overlay.width = width;
-        overlay.height = height;
-
-        const overlayCtx =
-          overlay.getContext('2d');
-
-        if (!overlayCtx) {
-          throw new Error(
-            'Overlay canvas context tidak tersedia.'
-          );
-        }
-
-        const overlayPixels =
-          overlayCtx.createImageData(
-            width,
-            height
-          );
-
-        let highlightedPixels = 0;
-
-        for (
-          let i = 0;
-          i < maskPixels.data.length;
-          i += 4
-        ) {
-
-          const r =
-            maskPixels.data[i];
-
-          const g =
-            maskPixels.data[i + 1];
-
-          const b =
-            maskPixels.data[i + 2];
-
-          const a =
-            maskPixels.data[i + 3];
-
-          const brightness =
-            (r + g + b) / 3;
-
-          if (
-            a > 0 &&
-            brightness > 127
-          ) {
-
-            overlayPixels.data[i] =
-              255;
-
-            overlayPixels.data[i + 1] =
-              0;
-
-            overlayPixels.data[i + 2] =
-              0;
-
-            overlayPixels.data[i + 3] =
-              150;
-
-            highlightedPixels++;
-          }
-        }
-
-        // =================================================
-        // 7. PUT ONLY THE OVERLAY
-        // =================================================
-        overlayCtx.putImageData(
-          overlayPixels,
-          0,
-          0
-        );
-
-        // =================================================
-        // 8. TRUE ALPHA COMPOSITING
-        // IMPORTANT:
-        // Jangan pakai putImageData ke base canvas.
-        // Gunakan drawImage + source-over.
-        // =================================================
-        ctx.save();
-
-        ctx.globalCompositeOperation =
-          'source-over';
-
-        ctx.globalAlpha = 1;
-
-        ctx.drawImage(
-          overlay,
-          0,
-          0,
-          width,
-          height
-        );
-
-        ctx.restore();
-
-        // =================================================
-        // 9. SAFETY CHECK
-        // =================================================
-        if (highlightedPixels === 0) {
-          throw new Error(
-            'Canonical mask tidak memiliki area putih/target.'
-          );
-        }
-
-        const compositeDataUrl =
-          canvas.toDataURL(
-            'image/png'
-          );
-
-        if (!compositeDataUrl) {
-          throw new Error(
-            'Composite PNG gagal dibuat.'
-          );
-        }
-
-        console.log(
-          '[ImageRegistry][GEMINI COMPOSITE VALIDATION]',
-          {
-            width,
-            height,
-            maskWidth,
-            maskHeight,
-            highlightedPixels,
-            hasComposite:
-              !!compositeDataUrl,
-            mimeType:
-              compositeDataUrl.match(
-                /^data:([^;]+);/
-              )?.[1] || null,
-            dataLength:
-              compositeDataUrl.length
-          }
-        );
-
-        resolve(
-          compositeDataUrl
-        );
-
-      } catch (err) {
-        reject(err);
-      }
-    };
-
-    originalImg.onload =
-      checkLoaded;
-
-    maskImg.onload =
-      checkLoaded;
-
-    originalImg.onerror = () =>
-      reject(
-        new Error(
-          'Gagal membaca original image.'
-        )
-      );
-
-    maskImg.onerror = () =>
-      reject(
-        new Error(
-          'Gagal membaca canonical mask.'
-        )
-      );
-
-    originalImg.src =
-      originalSrc;
-
-    maskImg.src =
-      maskDataUrl;
-  });
+function createGeminiCompositeMask(originalSrc, maskDataUrl) {
+  if (!ANTITHESIS_INPAINT_UTILS || typeof ANTITHESIS_INPAINT_UTILS.createGeminiCompositeMask !== "function") {
+    return Promise.reject(new Error("ANTITHESIS_CORE inpaintUtils belum siap."));
+  }
+  return ANTITHESIS_INPAINT_UTILS.createGeminiCompositeMask(originalSrc, maskDataUrl);
 }
 
+// ===================================================
+// PROFESSIONAL INPAINT BLENDING (WRAPPER)
+// ===================================================
 function applyProfessionalInpaintBlending(originalSrc, geminiSrc, maskDataUrl) {
-  return new Promise((resolve, reject) => {
-    const originalImg = new Image();
-    const geminiImg = new Image();
-    const maskImg = new Image();
-    
-    originalImg.crossOrigin = "anonymous";
-    geminiImg.crossOrigin = "anonymous";
-    maskImg.crossOrigin = "anonymous";
-    
-    let loadedCount = 0;
-    const checkAllLoaded = () => {
-      loadedCount++;
-      if (loadedCount === 3) {
-        try {
-          const finalCanvas = document.createElement('canvas');
-          const ctx = finalCanvas.getContext('2d');
-          
-          finalCanvas.width = originalImg.width;
-          finalCanvas.height = originalImg.height;
-          
-          ctx.drawImage(originalImg, 0, 0);
-          
-          const tempCanvas = document.createElement('canvas');
-          const tempCtx = tempCanvas.getContext('2d');
-          tempCanvas.width = originalImg.width;
-          tempCanvas.height = originalImg.height;
-          
-          tempCtx.filter = 'blur(14px)';
-          tempCtx.drawImage(maskImg, 0, 0, originalImg.width, originalImg.height);
-          
-          tempCtx.globalCompositeOperation = 'source-in';
-          tempCtx.filter = 'none';
-          tempCtx.drawImage(geminiImg, 0, 0, originalImg.width, originalImg.height);
-          
-          ctx.drawImage(tempCanvas, 0, 0);
-          resolve(finalCanvas.toDataURL('image/jpeg', 1.0));
-        } catch (e) {
-          reject(e);
-        }
-      }
-    };
-    
-    originalImg.onload = checkAllLoaded;
-    originalImg.onerror = reject;
-    geminiImg.onload = checkAllLoaded;
-    geminiImg.onerror = reject;
-    maskImg.onload = checkAllLoaded;
-    maskImg.onerror = reject;
-    
-    originalImg.src = originalSrc;
-    geminiImg.src = geminiSrc;
-    maskImg.src = maskDataUrl;
-  });
+  if (!ANTITHESIS_INPAINT_UTILS || typeof ANTITHESIS_INPAINT_UTILS.applyProfessionalInpaintBlending !== "function") {
+    return Promise.reject(new Error("ANTITHESIS_CORE inpaintUtils belum siap."));
+  }
+  return ANTITHESIS_INPAINT_UTILS.applyProfessionalInpaintBlending(originalSrc, geminiSrc, maskDataUrl);
 }
 
+// ===================================================
+// AUTO MASK GENERATOR (WRAPPER)
+// ===================================================
 function generateAutoMaskOnHiddenCanvas(originalSrc, normalizedBox) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      try {
-        const naturalWidth =
-  img.naturalWidth || img.width;
-
-const naturalHeight =
-  img.naturalHeight || img.height;
-
-if (!naturalWidth || !naturalHeight) {
-  reject(
-    new Error(
-      'Natural image dimension tidak valid.'
-    )
-  );
-  return;
+  if (!ANTITHESIS_INPAINT_UTILS || typeof ANTITHESIS_INPAINT_UTILS.generateAutoMaskOnHiddenCanvas !== "function") {
+    return Promise.reject(new Error("ANTITHESIS_CORE inpaintUtils belum siap."));
+  }
+  return ANTITHESIS_INPAINT_UTILS.generateAutoMaskOnHiddenCanvas(originalSrc, normalizedBox);
 }
 
-const maskCanvas =
-  document.createElement('canvas');
 
-maskCanvas.width =
-  naturalWidth;
-
-maskCanvas.height =
-  naturalHeight;
-
-const ctx =
-  maskCanvas.getContext('2d');
-
-if (!ctx) {
-  reject(
-    new Error(
-      'Canvas 2D context tidak tersedia.'
-    )
-  );
-  return;
-}
-        
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
-        
-        const ymin =
-  normalizedBox[0] <= 1
-    ? normalizedBox[0] * naturalHeight
-    : (normalizedBox[0] / 1000) * naturalHeight;
-
-const xmin =
-  normalizedBox[1] <= 1
-    ? normalizedBox[1] * naturalWidth
-    : (normalizedBox[1] / 1000) * naturalWidth;
-
-const ymax =
-  normalizedBox[2] <= 1
-    ? normalizedBox[2] * naturalHeight
-    : (normalizedBox[2] / 1000) * naturalHeight;
-
-const xmax =
-  normalizedBox[3] <= 1
-    ? normalizedBox[3] * naturalWidth
-    : (normalizedBox[3] / 1000) * naturalWidth;
-        
-        const rectW = xmax - xmin;
-        const rectH = ymax - ymin;
-        
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(xmin, ymin, rectW, rectH);
-        
-        resolve(maskCanvas.toDataURL('image/png'));
-      } catch (e) {
-        reject(e);
-      }
-    };
-    img.onerror = reject;
-    img.src = originalSrc;
-  });
-}
 
 export default function App() {
   const [isConstantsLoaded, setIsConstantsLoaded] = useState(false);
