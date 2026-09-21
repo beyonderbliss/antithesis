@@ -55,12 +55,12 @@ function prepareSource(source) {
   let code = source;
 
   code = code.replace(
-    /import React,\s*\{([\\s\\S]*?)\}\s*from\s*["']react["'];?/,
+    ,
     (_, hooks) => "const {" + hooks + "} = React;"
   );
 
   code = code.replace(
-    /import\s*\{([\\s\\S]*?)\}\s*from\s*["']lucide-react["'];?/,
+    /import\s*\{([\s\S]*?)\}\s*from\s*["']lucide-react["'];?/,
     (_, icons) => "const {" + icons + "} = LucideReact;"
   );
 
