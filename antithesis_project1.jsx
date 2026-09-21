@@ -61,28 +61,28 @@ const apiKey = ""; // API Key bawaan runtime default
 const ANTITHESIS_CORE = {
     
   constants:
-    "https://gist.githubusercontent.com/beyonderbliss/c7afd03be82b18bb321ce4dbbe3c8651/raw/constants.js",
+    "https://raw.githubusercontent.com/beyonderbliss/antithesis/main/src/gist/constants.js",
 
   voiceVisualizer:
-    "https://gist.githubusercontent.com/beyonderbliss/5940efb7fbb31ecc5efc4a232f394049/raw/tessa-audio-wave-visualizer.js",
+    "https://raw.githubusercontent.com/beyonderbliss/antithesis/main/src/gist/tessa-audio-wave-visualizer.js",
 
   imageUtils:
-    "https://gist.githubusercontent.com/beyonderbliss/2ccac7f4a6510211d41ef5075236aee4/raw/image-utils.js",
+    "https://raw.githubusercontent.com/beyonderbliss/antithesis/main/src/gist/image-utils.js",
 
   inpaintUtils:
-    "https://gist.githubusercontent.com/beyonderbliss/b7f78e08abfcba206125973fdaadede9/raw/inpaint-utils.js",
+    "https://raw.githubusercontent.com/beyonderbliss/antithesis/main/src/gist/inpaint-utils.js",
 
   metadataUtils:
-    "https://gist.githubusercontent.com/beyonderbliss/64925d091a5147cf3b629564ef88473f/raw/metadata-utils.js",
+    "https://raw.githubusercontent.com/beyonderbliss/antithesis/main/src/gist/metadata-utils.js",
 
   voiceUtils:
-    "https://gist.githubusercontent.com/beyonderbliss/fc428f33db81f4cbd986e391b2b3db85/raw/voice-utils.js",
+    "https://raw.githubusercontent.com/beyonderbliss/antithesis/main/src/gist/voice-utils.js",
     
   settingsDrawer:
-    "https://gist.githubusercontent.com/beyonderbliss/c70bcd94181a3b681905f0466b28f1ec/raw/settings-drawer.js",
+    "https://raw.githubusercontent.com/beyonderbliss/antithesis/main/src/gist/settings-drawer.js",
     
   promptTemplates:
-    "https://gist.githubusercontent.com/beyonderbliss/2d6bbec5ec27c077a7037387aacf9b0d/raw/prompt-templates.js"
+    "https://raw.githubusercontent.com/beyonderbliss/antithesis/main/src/gist/prompt-templates.js"
 };
 
 // ===================================================
