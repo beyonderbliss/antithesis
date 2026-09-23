@@ -3,8 +3,8 @@ import React, { useEffect, useRef, useState } from "react";
 const BASELINE_SOURCE_URL =
   "https://raw.githubusercontent.com/beyonderbliss/antithesis/phase-0.5/canvas-antithesis-loader/antithesis_project1.jsx";
 
-const MAIN_SOURCE_URL =
-  "https://raw.githubusercontent.com/beyonderbliss/antithesis/main/antithesis_project1.jsx";
+const MAIN_SOURCE_BASE_URL =
+  "https://raw.githubusercontent.com/beyonderbliss/antithesis/";
 
 const GITHUB_COMMITS_URL =
   "https://api.github.com/repos/beyonderbliss/antithesis/commits?per_page=1";
@@ -526,7 +526,7 @@ export default function App() {
 
     try {
       const sourceUrl =
-        MAIN_SOURCE_URL + "?rev=" + encodeURIComponent(latest.sha);
+        MAIN_SOURCE_BASE_URL + encodeURIComponent(latest.sha) + "/antithesis_project1.jsx";
 
       const LoadedApp = await loadAndValidate(
         sourceUrl,
@@ -654,7 +654,7 @@ export default function App() {
           style={{
             position: "fixed",
             top: 12,
-            left: 12,
+            right: 12,
             zIndex: 999999,
             minHeight: 34,
             padding: "0 11px",
