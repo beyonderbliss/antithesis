@@ -57,6 +57,13 @@ function loadScript(src, globalName) {
   });
 }
 
+function extractAntithesisVersion(source) {
+  const match = String(source || "").match(
+    /(?:const|let|var)\s+ANTITHESIS_VERSION\s*=\s*["']([^"']+)["']/
+  );
+  return match?.[1] || null;
+}
+
 function prepareSource(source) {
   let code = source;
 
@@ -217,6 +224,7 @@ async function compileAppFromSource(sourceUrl, revisionSha) {
   }
 
   const source = await sourceResponse.text();
+  const antithesisVersion = extractAntithesisVersion(source);
   const prepared = prepareSource(source);
 
   const transformed = Babel.transform(prepared, {
@@ -232,6 +240,8 @@ async function compileAppFromSource(sourceUrl, revisionSha) {
   if (typeof LoadedApp !== "function") {
     throw new Error("Antithesis App component was not found after loading.");
   }
+
+  LoadedApp.ANTITHESIS_VERSION = antithesisVersion;
 
   return LoadedApp;
 }
@@ -510,7 +520,9 @@ function Phase06Loader({
   status,
   statusText,
   currentRevision,
+  currentVersion,
   latestRevision,
+  latestVersion,
   hasUpdate,
   onRefresh,
   onUpdate,
@@ -635,7 +647,7 @@ function Phase06Loader({
               fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
               color: "#d4d4d8"
             }}>
-              {currentRevision || "—"}
+              {currentRevision || "—"}{currentVersion ? " (" + currentVersion + ")" : ""}
             </div>
           </div>
 
@@ -654,7 +666,7 @@ function Phase06Loader({
               fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
               color: hasUpdate ? "#fbbf24" : "#d4d4d8"
             }}>
-              {latestRevision || "—"}
+              {latestRevision || "—"}{latestVersion ? " (" + latestVersion + ")" : ""}
             </div>
           </div>
         </div>
@@ -721,7 +733,9 @@ export default function App() {
     statusText: "Memuat Antithesis yang sudah dikenal…",
     component: null,
     currentRevision: stored?.shortSha || "phase-0.5",
+    currentVersion: stored?.version || null,
     latestRevision: null,
+    latestVersion: null,
     latestFullSha: null,
     updateInfo: null,
     updateInfoLoading: false,
@@ -767,6 +781,8 @@ export default function App() {
           status: "success",
           statusText: "Antithesis sudah menggunakan revision GitHub terbaru.",
           latestRevision: latest.shortSha,
+          latestVersion:
+            prev.latestVersion || prev.currentVersion || null,
           latestFullSha: latest.sha,
           hasUpdate: false,
           busy: false
@@ -792,6 +808,8 @@ export default function App() {
         status: "success",
         statusText: "Versi baru Antithesis tersedia dari GitHub.",
         latestRevision: latest.shortSha,
+        latestVersion:
+          prev.latestVersion || prev.currentVersion || null,
         latestFullSha: latest.sha,
         hasUpdate: true,
         busy: false
@@ -875,13 +893,18 @@ export default function App() {
         latest.sha
       );
 
+      const loadedVersion = LoadedApp.ANTITHESIS_VERSION || null;
+
       storeRevision({
         sha: latest.sha,
         shortSha: latest.sha.slice(0, 7),
-        sourceUrl: sourceUrl
+        sourceUrl: sourceUrl,
+        version: loadedVersion
       });
 
       applyComponent(LoadedApp, {
+        currentVersion: loadedVersion,
+        latestVersion: loadedVersion,
         status: "success",
         statusText: "Update berhasil. Revision baru sudah siap.",
         currentRevision: latest.sha.slice(0, 7),
@@ -962,10 +985,13 @@ export default function App() {
 
           if (!alive) return;
 
+          const latestVersion = LatestApp.ANTITHESIS_VERSION || null;
+
           storeRevision({
             sha: latest.sha,
             shortSha: latest.sha.slice(0, 7),
-            sourceUrl: latestSourceUrl
+            sourceUrl: latestSourceUrl,
+            version: latestVersion
           });
 
           activeComponentRef.current = LatestApp;
@@ -978,7 +1004,9 @@ export default function App() {
             statusText: "Antithesis terbaru sudah siap. Silakan launch.",
             component: LatestApp,
             currentRevision: latest.sha.slice(0, 7),
+            currentVersion: latestVersion,
             latestRevision: latest.sha.slice(0, 7),
+            latestVersion: latestVersion,
             latestFullSha: latest.sha,
             sourceUrl: latestSourceUrl,
             hasUpdate: false,
@@ -992,6 +1020,8 @@ export default function App() {
           status: "success",
           statusText: "Antithesis sudah menggunakan revision GitHub terbaru. Silakan launch.",
           latestRevision: latest.shortSha,
+          latestVersion:
+            prev.latestVersion || prev.currentVersion || null,
           latestFullSha: latest.sha,
           hasUpdate: false,
           busy: false
@@ -1076,7 +1106,9 @@ export default function App() {
           status={state.status}
           statusText={state.statusText}
           currentRevision={state.currentRevision}
+          currentVersion={state.currentVersion}
           latestRevision={state.latestRevision}
+          latestVersion={state.latestVersion}
           hasUpdate={state.hasUpdate}
           busy={state.busy}
           onRefresh={() => checkForUpdate(false)}
