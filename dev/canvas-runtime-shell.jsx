@@ -515,6 +515,7 @@ function Phase06Loader({
   onRefresh,
   onUpdate,
   onShowUpdateInfo,
+  onLaunch,
   busy
 }) {
   const isError = status === "error";
