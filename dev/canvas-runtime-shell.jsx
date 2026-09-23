@@ -1,13 +1,21 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
-const SOURCE_URL =
+const BASELINE_SOURCE_URL =
   "https://raw.githubusercontent.com/beyonderbliss/antithesis/phase-0.5/canvas-antithesis-loader/antithesis_project1.jsx";
+
+const MAIN_SOURCE_URL =
+  "https://raw.githubusercontent.com/beyonderbliss/antithesis/main/antithesis_project1.jsx";
+
+const GITHUB_COMMITS_URL =
+  "https://api.github.com/repos/beyonderbliss/antithesis/commits?per_page=1";
+
+const STORAGE_KEY = "antithesis.canvas-runtime.phase06";
 
 const BABEL_URL =
   "https://unpkg.com/@babel/standalone@7.28.4/babel.min.js";
 
 const LUCIDE_URL =
-  "https://unpkg.com/lucide-react@0.472.0/dist/umd/lucide-react.min.js?v=phase05-" + Date.now();
+  "https://unpkg.com/lucide-react@0.472.0/dist/umd/lucide-react.min.js?v=phase06-" + Date.now();
 
 function loadScript(src, globalName) {
   return new Promise((resolve, reject) => {
@@ -16,7 +24,7 @@ function loadScript(src, globalName) {
       return;
     }
 
-    const existing = document.querySelector('script[data-phase05-src="' + src + '"]');
+    const existing = document.querySelector('script[data-phase06-src="' + src + '"]');
     if (existing) {
       const check = () => {
         if (!globalName || window[globalName]) {
@@ -33,7 +41,7 @@ function loadScript(src, globalName) {
     const script = document.createElement("script");
     script.src = src;
     script.async = true;
-    script.dataset.phase05Src = src;
+    script.dataset.phase06Src = src;
     script.onload = () => {
       if (!globalName || window[globalName]) {
         resolve(globalName ? window[globalName] : true);
@@ -65,7 +73,6 @@ function prepareSource(source) {
     }
   );
 
-  // Final guard: no ES-module imports may reach new Function.
   code = code.replace(
     /import\s+[\s\S]*?from\s+["'][^"']+["'];?/g,
     ""
@@ -80,89 +87,540 @@ function prepareSource(source) {
   return code;
 }
 
+function readStoredRevision() {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    if (!parsed.sha || !parsed.sourceUrl) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function storeRevision(revision) {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(revision));
+  } catch {
+    // localStorage is only an optimization; runtime must continue without it.
+  }
+}
+
+async function getLatestRevision() {
+  const response = await fetch(
+    GITHUB_COMMITS_URL + "&t=" + Date.now(),
+    {
+      cache: "no-store",
+      headers: {
+        Accept: "application/vnd.github+json"
+      }
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("GitHub revision check HTTP " + response.status);
+  }
+
+  const commits = await response.json();
+  const latest = commits && commits[0];
+
+  if (!latest || !latest.sha) {
+    throw new Error("GitHub tidak mengembalikan revision terbaru.");
+  }
+
+  return {
+    sha: latest.sha,
+    shortSha: latest.sha.slice(0, 7),
+    message: latest.commit?.message?.split("\n")[0] || "GitHub update",
+    date: latest.commit?.committer?.date || latest.commit?.author?.date || null
+  };
+}
+
+async function compileAppFromSource(sourceUrl, revisionSha) {
+  const [sourceResponse] = await Promise.all([
+    fetch(sourceUrl + "?v=" + encodeURIComponent(revisionSha || Date.now()), {
+      cache: "no-store"
+    }),
+    loadScript(BABEL_URL, "Babel"),
+    loadScript(LUCIDE_URL, "LucideReact")
+  ]);
+
+  if (!sourceResponse.ok) {
+    throw new Error("Antithesis source HTTP " + sourceResponse.status);
+  }
+
+  const source = await sourceResponse.text();
+  const prepared = prepareSource(source);
+
+  const transformed = Babel.transform(prepared, {
+    presets: ["react"]
+  }).code;
+
+  const LoadedApp = new Function(
+    "React",
+    "LucideReact",
+    transformed + "\nreturn typeof App !== 'undefined' ? App : null;"
+  )(React, window.LucideReact);
+
+  if (typeof LoadedApp !== "function") {
+    throw new Error("Antithesis App component was not found after loading.");
+  }
+
+  return LoadedApp;
+}
+
+function LoaderIcon({ children }) {
+  return (
+    <span style={{
+      width: 34,
+      height: 34,
+      borderRadius: 10,
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      background: "rgba(255,255,255,0.06)",
+      border: "1px solid rgba(255,255,255,0.09)",
+      flexShrink: 0
+    }}>
+      {children}
+    </span>
+  );
+}
+
+function LoaderButton({ children, onClick, disabled, primary, title }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      style={{
+        width: "100%",
+        minHeight: 44,
+        borderRadius: 12,
+        border: primary
+          ? "1px solid rgba(244,63,94,0.55)"
+          : "1px solid rgba(255,255,255,0.10)",
+        background: primary
+          ? "rgba(244,63,94,0.12)"
+          : "rgba(255,255,255,0.045)",
+        color: disabled ? "#666" : primary ? "#fda4af" : "#d4d4d8",
+        fontSize: 12,
+        fontWeight: 800,
+        letterSpacing: "0.04em",
+        cursor: disabled ? "default" : "pointer",
+        transition: "all 150ms ease"
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function Phase06Loader({
+  status,
+  statusText,
+  currentRevision,
+  latestRevision,
+  hasUpdate,
+  onRefresh,
+  onUpdate,
+  onLaunch,
+  busy
+}) {
+  const isError = status === "error";
+
+  return (
+    <div style={{
+      minHeight: "100vh",
+      boxSizing: "border-box",
+      padding: 20,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      background: "#08080b",
+      color: "#f4f4f5",
+      fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, sans-serif"
+    }}>
+      <div style={{
+        width: "100%",
+        maxWidth: 430,
+        border: "1px solid rgba(255,255,255,0.09)",
+        borderRadius: 22,
+        padding: 22,
+        background: "rgba(18,18,23,0.96)",
+        boxShadow: "0 24px 80px rgba(0,0,0,0.45)"
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 22 }}>
+          <LoaderIcon>
+            <span style={{ fontSize: 17 }}>A</span>
+          </LoaderIcon>
+          <div>
+            <div style={{
+              fontSize: 11,
+              fontWeight: 900,
+              letterSpacing: "0.18em",
+              color: "#e4e4e7"
+            }}>
+              ANTITHESIS
+            </div>
+            <div style={{
+              marginTop: 3,
+              fontSize: 9,
+              fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+              color: "#71717a",
+              letterSpacing: "0.08em"
+            }}>
+              CANVAS RUNTIME SHELL · PHASE 0.6
+            </div>
+          </div>
+        </div>
+
+        <div style={{
+          padding: 14,
+          borderRadius: 15,
+          background: isError
+            ? "rgba(127,29,29,0.14)"
+            : hasUpdate
+              ? "rgba(217,119,6,0.10)"
+              : "rgba(255,255,255,0.035)",
+          border: "1px solid " + (
+            isError
+              ? "rgba(248,113,113,0.18)"
+              : hasUpdate
+                ? "rgba(251,191,36,0.18)"
+                : "rgba(255,255,255,0.06)"
+          ),
+          marginBottom: 14
+        }}>
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontSize: 11,
+            fontWeight: 800
+          }}>
+            <span style={{
+              width: 7,
+              height: 7,
+              borderRadius: "50%",
+              background: isError ? "#f87171" : hasUpdate ? "#fbbf24" : "#4ade80",
+              boxShadow: isError
+                ? "0 0 10px rgba(248,113,113,0.55)"
+                : hasUpdate
+                  ? "0 0 10px rgba(251,191,36,0.55)"
+                  : "0 0 10px rgba(74,222,128,0.55)"
+            }} />
+            {isError ? "Loader error" : hasUpdate ? "Update tersedia" : "Loader ready"}
+          </div>
+
+          <div style={{
+            marginTop: 8,
+            fontSize: 11,
+            lineHeight: 1.55,
+            color: "#a1a1aa"
+          }}>
+            {statusText}
+          </div>
+        </div>
+
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 8,
+          marginBottom: 14
+        }}>
+          <div style={{
+            padding: 11,
+            borderRadius: 12,
+            background: "rgba(255,255,255,0.025)",
+            border: "1px solid rgba(255,255,255,0.055)"
+          }}>
+            <div style={{ fontSize: 8, color: "#71717a", letterSpacing: "0.12em", fontWeight: 800 }}>
+              CURRENT
+            </div>
+            <div style={{
+              marginTop: 5,
+              fontSize: 10,
+              fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+              color: "#d4d4d8"
+            }}>
+              {currentRevision || "—"}
+            </div>
+          </div>
+
+          <div style={{
+            padding: 11,
+            borderRadius: 12,
+            background: "rgba(255,255,255,0.025)",
+            border: "1px solid rgba(255,255,255,0.055)"
+          }}>
+            <div style={{ fontSize: 8, color: "#71717a", letterSpacing: "0.12em", fontWeight: 800 }}>
+              GITHUB
+            </div>
+            <div style={{
+              marginTop: 5,
+              fontSize: 10,
+              fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+              color: hasUpdate ? "#fbbf24" : "#d4d4d8"
+            }}>
+              {latestRevision || "—"}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gap: 9 }}>
+          <LoaderButton
+            onClick={onRefresh}
+            disabled={busy}
+            title="Check GitHub dan sinkronkan status versi"
+          >
+            {busy ? "CHECKING GITHUB…" : "↻  REFRESH / CHECK UPDATE"}
+          </LoaderButton>
+
+          {hasUpdate && (
+            <LoaderButton
+              onClick={onUpdate}
+              disabled={busy}
+              primary
+            >
+              {busy ? "LOADING UPDATE…" : "UPDATE SEKARANG"}
+            </LoaderButton>
+          )}
+
+          <LoaderButton
+            onClick={onLaunch}
+            disabled={busy || status === "loading"}
+            primary={!hasUpdate}
+          >
+            LAUNCH ANTITHESIS
+          </LoaderButton>
+        </div>
+
+        <div style={{
+          marginTop: 16,
+          paddingTop: 13,
+          borderTop: "1px solid rgba(255,255,255,0.06)",
+          fontSize: 9,
+          lineHeight: 1.55,
+          color: "#52525b",
+          fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace"
+        }}>
+          Canvas tetap hidup. Refresh di sini tidak me-reload browser atau membuka ulang percakapan Gemini.
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
+  const stored = readStoredRevision();
+
   const [state, setState] = useState({
     status: "loading",
-    message: "Loading Antithesis from GitHub…",
-    component: null
+    statusText: "Memuat Antithesis yang sudah dikenal…",
+    component: null,
+    currentRevision: stored?.shortSha || "phase-0.5",
+    latestRevision: null,
+    latestFullSha: null,
+    sourceUrl: stored?.sourceUrl || BASELINE_SOURCE_URL,
+    hasUpdate: false,
+    busy: true
   });
+
+  const activeComponentRef = useRef(null);
+
+  const applyComponent = (LoadedApp, patch = {}) => {
+    activeComponentRef.current = LoadedApp;
+    setState(prev => ({
+      ...prev,
+      ...patch,
+      component: LoadedApp,
+      busy: false
+    }));
+  };
+
+  const checkForUpdate = async (silent = false) => {
+    setState(prev => ({
+      ...prev,
+      busy: true,
+      status: "checking",
+      statusText: silent ? "Memeriksa revision GitHub…" : "Memeriksa revision terbaru dari GitHub…"
+    }));
+
+    try {
+      const latest = await getLatestRevision();
+      const current = state.currentRevision;
+
+      if (current && current !== "phase-0.5" && latest.sha.startsWith(current)) {
+        setState(prev => ({
+          ...prev,
+          status: "success",
+          statusText: "Antithesis sudah menggunakan revision GitHub terbaru.",
+          latestRevision: latest.shortSha,
+          latestFullSha: latest.sha,
+          hasUpdate: false,
+          busy: false
+        }));
+        return latest;
+      }
+
+      if (current === latest.shortSha || (stored && stored.sha === latest.sha)) {
+        setState(prev => ({
+          ...prev,
+          status: "success",
+          statusText: "Tidak ada update baru. Revision aktif sudah terbaru.",
+          latestRevision: latest.shortSha,
+          latestFullSha: latest.sha,
+          hasUpdate: false,
+          busy: false
+        }));
+        return latest;
+      }
+
+      setState(prev => ({
+        ...prev,
+        status: "success",
+        statusText: "Versi baru Antithesis tersedia dari GitHub.",
+        latestRevision: latest.shortSha,
+        latestFullSha: latest.sha,
+        hasUpdate: true,
+        busy: false
+      }));
+
+      return latest;
+    } catch (error) {
+      setState(prev => ({
+        ...prev,
+        status: "error",
+        statusText: String(error?.message || error),
+        busy: false
+      }));
+      return null;
+    }
+  };
+
+  const loadAndValidate = async (sourceUrl, revisionSha) => {
+    const LoadedApp = await compileAppFromSource(sourceUrl, revisionSha);
+    return LoadedApp;
+  };
+
+  const updateToLatest = async () => {
+    const latest = state.latestFullSha
+      ? {
+          sha: state.latestFullSha,
+          shortSha: state.latestFullSha.slice(0, 7)
+        }
+      : await getLatestRevision();
+
+    if (!latest?.sha) return;
+
+    setState(prev => ({
+      ...prev,
+      busy: true,
+      status: "updating",
+      statusText: "Mengambil dan memvalidasi Antithesis revision " + latest.sha.slice(0, 7) + "…"
+    }));
+
+    try {
+      const sourceUrl =
+        MAIN_SOURCE_URL + "?rev=" + encodeURIComponent(latest.sha);
+
+      const LoadedApp = await loadAndValidate(
+        sourceUrl,
+        latest.sha
+      );
+
+      storeRevision({
+        sha: latest.sha,
+        shortSha: latest.sha.slice(0, 7),
+        sourceUrl: sourceUrl
+      });
+
+      applyComponent(LoadedApp, {
+        status: "success",
+        statusText: "Update berhasil. Revision baru sudah siap.",
+        currentRevision: latest.sha.slice(0, 7),
+        latestRevision: latest.sha.slice(0, 7),
+        latestFullSha: latest.sha,
+        sourceUrl,
+        hasUpdate: false
+      });
+    } catch (error) {
+      setState(prev => ({
+        ...prev,
+        status: "error",
+        statusText:
+          "Update gagal. Versi yang sedang berjalan tetap dipertahankan. " +
+          String(error?.message || error),
+        busy: false
+      }));
+    }
+  };
+
+  const launchAntithesis = () => {
+    if (!activeComponentRef.current) return;
+    setState(prev => ({
+      ...prev,
+      status: "launched",
+      statusText: "Antithesis sedang berjalan.",
+      busy: false
+    }));
+  };
 
   useEffect(() => {
     let alive = true;
 
     (async () => {
       try {
-        // lucide-react's UMD build expects React on the global object.
-        // Canvas provides React to this entry as an ES module, so bridge only
-        // during Lucide initialization and restore the previous global after.
-        // lucide-react UMD resolves its React dependency from the lowercase
-        // global `react`, while Canvas exposes React through this entry module.
-        // Bridge both names temporarily so Lucide captures the exact same React
-        // instance that renders Antithesis. The cache-busted URL also prevents
-        // reuse of a Lucide instance initialized during an earlier failed load.
-        const previousGlobalReact = window.React;
-        const previousGlobalReactLower = window.react;
-        window.React = React;
-        window.react = React;
+        const sourceUrl = stored?.sourceUrl || BASELINE_SOURCE_URL;
+        const revisionSha = stored?.sha || "phase-0.5";
 
-        let sourceResponse;
-        try {
-          [sourceResponse] = await Promise.all([
-            fetch(SOURCE_URL + "?v=" + Date.now(), { cache: "no-store" }),
-            loadScript(BABEL_URL, "Babel"),
-            loadScript(LUCIDE_URL, "LucideReact")
-          ]);
-        } finally {
-          if (previousGlobalReact === undefined) {
-            try { delete window.React; } catch {}
-          } else {
-            window.React = previousGlobalReact;
-          }
+        const LoadedApp = await loadAndValidate(sourceUrl, revisionSha);
 
-          if (previousGlobalReactLower === undefined) {
-            try { delete window.react; } catch {}
-          } else {
-            window.react = previousGlobalReactLower;
-          }
-        }
+        if (!alive) return;
 
-        if (!sourceResponse.ok) {
-          throw new Error("Antithesis source HTTP " + sourceResponse.status);
-        }
+        activeComponentRef.current = LoadedApp;
 
-        const source = await sourceResponse.text();
-        const prepared = prepareSource(source);
+        setState(prev => ({
+          ...prev,
+          status: "success",
+          statusText: "Antithesis siap. Silakan cek update atau launch.",
+          component: LoadedApp,
+          busy: false
+        }));
 
-        const transformed = Babel.transform(prepared, {
-          presets: ["react"]
-        }).code;
+        // Initial detection is intentionally non-blocking:
+        // the known-good app can become usable before the GitHub check finishes.
+        const latest = await getLatestRevision();
 
-        const LoadedApp = new Function(
-          "React",
-          "LucideReact",
-          transformed + "\nreturn typeof App !== 'undefined' ? App : null;"
-        )(React, window.LucideReact);
+        if (!alive || !latest) return;
 
-        if (typeof LoadedApp !== "function") {
-          throw new Error("Antithesis App component was not found after loading.");
-        }
+        const current = stored?.sha || null;
+        const hasUpdate = !current || current !== latest.sha;
 
-        if (alive) {
-          setState({
-            status: "success",
-            message: "Antithesis loaded from GitHub.",
-            component: LoadedApp
-          });
-        }
+        setState(prev => ({
+          ...prev,
+          latestRevision: latest.shortSha,
+          latestFullSha: latest.sha,
+          hasUpdate,
+          status: hasUpdate ? "success" : prev.status,
+          statusText: hasUpdate
+            ? "Versi baru Antithesis tersedia dari GitHub."
+            : prev.statusText
+        }));
       } catch (error) {
-        console.error("[Phase 0.5]", error);
-        if (alive) {
-          setState({
-            status: "error",
-            message: String(error?.message || error),
-            component: null
-          });
-        }
+        if (!alive) return;
+
+        setState(prev => ({
+          ...prev,
+          status: "error",
+          statusText: String(error?.message || error),
+          component: null,
+          busy: false
+        }));
       }
     })();
 
@@ -171,27 +629,65 @@ export default function App() {
     };
   }, []);
 
-  if (state.component) {
+  const goToLoader = () => {
+    setState(prev => ({
+      ...prev,
+      status: "success",
+      statusText: prev.hasUpdate
+        ? "Versi baru tersedia. Kembali ke loader untuk update."
+        : "Antithesis siap. Kamu bisa refresh/check GitHub kapan saja.",
+      busy: false
+    }));
+  };
+
+  if (state.component && state.status === "launched") {
     const LoadedApp = state.component;
-    return <LoadedApp />;
+
+    return (
+      <div style={{ minHeight: "100vh", position: "relative" }}>
+        <LoadedApp />
+
+        <button
+          type="button"
+          onClick={goToLoader}
+          title="Kembali ke Antithesis Loader"
+          style={{
+            position: "fixed",
+            top: 12,
+            left: 12,
+            zIndex: 999999,
+            minHeight: 34,
+            padding: "0 11px",
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(10,10,14,0.82)",
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
+            color: "#d4d4d8",
+            fontSize: 9,
+            fontWeight: 800,
+            letterSpacing: "0.07em",
+            cursor: "pointer",
+            boxShadow: "0 8px 30px rgba(0,0,0,0.28)"
+          }}
+        >
+          ← LOADER
+        </button>
+      </div>
+    );
   }
 
   return (
-    <div style={{
-      minHeight: "100vh",
-      padding: 24,
-      fontFamily: "sans-serif",
-      background: "#111",
-      color: "#fff"
-    }}>
-      <h2>Antithesis — Phase 0.5</h2>
-      <p><b>Status:</b> {state.status}</p>
-      <p>{state.message}</p>
-      {state.status === "loading" && (
-        <p style={{ color: "#999" }}>
-          Fetching the current Antithesis source from GitHub…
-        </p>
-      )}
-    </div>
+    <Phase06Loader
+      status={state.status}
+      statusText={state.statusText}
+      currentRevision={state.currentRevision}
+      latestRevision={state.latestRevision}
+      hasUpdate={state.hasUpdate}
+      busy={state.busy}
+      onRefresh={() => checkForUpdate(false)}
+      onUpdate={updateToLatest}
+      onLaunch={launchAntithesis}
+    />
   );
 }
