@@ -116,6 +116,19 @@ function extractAppVersion(source) {
   return match?.[1] || "unknown";
 }
 
+async function getSourceVersion(sourceUrl, revisionSha) {
+  const response = await fetch(
+    sourceUrl + "?v=" + encodeURIComponent(revisionSha || Date.now()),
+    { cache: "no-store" }
+  );
+
+  if (!response.ok) {
+    throw new Error("Antithesis source HTTP " + response.status);
+  }
+
+  return extractAppVersion(await response.text());
+}
+
 async function getLatestRevision() {
   const response = await fetch(
     GITHUB_COMMITS_URL + "&t=" + Date.now(),
@@ -138,9 +151,17 @@ async function getLatestRevision() {
     throw new Error("GitHub tidak mengembalikan revision terbaru.");
   }
 
+  const sourceUrl =
+    MAIN_SOURCE_BASE_URL +
+    encodeURIComponent(latest.sha) +
+    "/antithesis_project1.jsx";
+
+  const version = await getSourceVersion(sourceUrl, latest.sha);
+
   return {
     sha: latest.sha,
     shortSha: latest.sha.slice(0, 7),
+    version,
     message: latest.commit?.message?.split("\n")[0] || "GitHub update",
     date: latest.commit?.committer?.date || latest.commit?.author?.date || null
   };
@@ -987,6 +1008,7 @@ export default function App() {
           storeRevision({
             sha: latest.sha,
             shortSha: latest.sha.slice(0, 7),
+            version: latest.version,
             sourceUrl: latestSourceUrl
           });
 
