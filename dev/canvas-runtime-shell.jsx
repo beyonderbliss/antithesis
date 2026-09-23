@@ -743,7 +743,7 @@ function Phase06Loader({
   );
 }
 
-export default function App() {
+function App() {
   const stored = readStoredRevision();
 
   const [state, setState] = useState({
@@ -1149,5 +1149,57 @@ export default function App() {
         )}
       </div>
     </div>
+  );
+}
+
+
+class CanvasRuntimeErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+  componentDidCatch(error, info) {
+    console.error("[ANTITHESIS SHELL ERROR]", error, info);
+  }
+  render() {
+    if (!this.state.error) return this.props.children;
+    const error = this.state.error;
+    return (
+      <div style={{
+        minHeight: "100vh", boxSizing: "border-box", padding: 20,
+        background: "#08080b", color: "#f4f4f5",
+        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace"
+      }}>
+        <div style={{
+          maxWidth: 760, margin: "0 auto", padding: 20, borderRadius: 16,
+          border: "1px solid rgba(248,113,113,0.3)",
+          background: "rgba(127,29,29,0.14)"
+        }}>
+          <div style={{color:"#fca5a5",fontSize:13,fontWeight:900,letterSpacing:"0.08em"}}>
+            CANVAS RUNTIME ERROR
+          </div>
+          <div style={{
+            marginTop:12,color:"#e4e4e7",fontSize:12,lineHeight:1.6,
+            whiteSpace:"pre-wrap",wordBreak:"break-word"
+          }}>
+            {String(error?.stack || error?.message || error)}
+          </div>
+          <div style={{marginTop:14,color:"#71717a",fontSize:10,lineHeight:1.6}}>
+            Diagnostic shell: error ini ditampilkan agar sumber blank screen bisa dilacak tanpa Console.
+          </div>
+        </div>
+      </div>
+    );
+  }
+}
+
+export default function CanvasRuntimeShell() {
+  return (
+    <CanvasRuntimeErrorBoundary>
+      <App />
+    </CanvasRuntimeErrorBoundary>
   );
 }
