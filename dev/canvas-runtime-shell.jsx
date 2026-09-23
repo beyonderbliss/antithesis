@@ -140,9 +140,26 @@ async function getLatestRevision() {
     throw new Error("GitHub tidak mengembalikan revision terbaru.");
   }
 
+  const latestSourceUrl =
+    MAIN_SOURCE_BASE_URL +
+    encodeURIComponent(latest.sha) +
+    "/antithesis_project1.jsx";
+
+  const sourceResponse = await fetch(
+    latestSourceUrl + "?v=" + encodeURIComponent(latest.sha),
+    { cache: "no-store" }
+  );
+
+  if (!sourceResponse.ok) {
+    throw new Error("Antithesis latest source HTTP " + sourceResponse.status);
+  }
+
+  const latestSource = await sourceResponse.text();
+
   return {
     sha: latest.sha,
     shortSha: latest.sha.slice(0, 7),
+    version: extractAntithesisVersion(latestSource),
     message: latest.commit?.message?.split("\n")[0] || "GitHub update",
     date: latest.commit?.committer?.date || latest.commit?.author?.date || null
   };
@@ -781,8 +798,7 @@ export default function App() {
           status: "success",
           statusText: "Antithesis sudah menggunakan revision GitHub terbaru.",
           latestRevision: latest.shortSha,
-          latestVersion:
-            prev.latestVersion || prev.currentVersion || null,
+          latestVersion: latest.version,
           latestFullSha: latest.sha,
           hasUpdate: false,
           busy: false
@@ -808,8 +824,7 @@ export default function App() {
         status: "success",
         statusText: "Versi baru Antithesis tersedia dari GitHub.",
         latestRevision: latest.shortSha,
-        latestVersion:
-          prev.latestVersion || prev.currentVersion || null,
+        latestVersion: latest.version,
         latestFullSha: latest.sha,
         hasUpdate: true,
         busy: false
@@ -1020,8 +1035,7 @@ export default function App() {
           status: "success",
           statusText: "Antithesis sudah menggunakan revision GitHub terbaru. Silakan launch.",
           latestRevision: latest.shortSha,
-          latestVersion:
-            prev.latestVersion || prev.currentVersion || null,
+          latestVersion: latest.version,
           latestFullSha: latest.sha,
           hasUpdate: false,
           busy: false
