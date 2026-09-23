@@ -456,9 +456,13 @@ export default function App() {
   });
 
   const activeComponentRef = useRef(null);
+  const currentRevisionRef = useRef(stored?.shortSha || "phase-0.5");
 
   const applyComponent = (LoadedApp, patch = {}) => {
     activeComponentRef.current = LoadedApp;
+    if (patch.currentRevision !== undefined) {
+      currentRevisionRef.current = patch.currentRevision;
+    }
     setState(prev => ({
       ...prev,
       ...patch,
@@ -477,7 +481,7 @@ export default function App() {
 
     try {
       const latest = await getLatestRevision();
-      const current = state.currentRevision;
+      const current = currentRevisionRef.current;
 
       if (current && current !== "phase-0.5" && latest.sha.startsWith(current)) {
         setState(prev => ({
