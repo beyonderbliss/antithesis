@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 
 const SOURCE_URL =
-  "https://raw.githubusercontent.com/beyonderbliss/antithesis/main/antithesis_project1.jsx";
+  "https://raw.githubusercontent.com/beyonderbliss/antithesis/phase-0.5/canvas-antithesis-loader/antithesis_project1.jsx";
 
 const BABEL_URL =
   "https://unpkg.com/@babel/standalone@7.28.4/babel.min.js";
@@ -80,72 +80,17 @@ function prepareSource(source) {
   return code;
 }
 
-async function fetchLatestCommit() {
-  const response = await fetch(
-    "https://api.github.com/repos/beyonderbliss/antithesis/commits?path=antithesis_project1.jsx&per_page=1",
-    {
-      cache: "no-store",
-      headers: { Accept: "application/vnd.github+json" }
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error("GitHub commit check HTTP " + response.status);
-  }
-
-  const commits = await response.json();
-
-  if (!Array.isArray(commits) || !commits[0]?.sha) {
-    throw new Error("GitHub tidak mengembalikan commit Antithesis.");
-  }
-
-  return commits[0].sha;
-}
-
-async function loadAntithesis(commitSha) {
-  const sourceResponse = await fetch(
-    SOURCE_URL + "?v=" + encodeURIComponent(commitSha),
-    { cache: "no-store" }
-  );
-
-  if (!sourceResponse.ok) {
-    throw new Error("Antithesis source HTTP " + sourceResponse.status);
-  }
-
-  const source = await sourceResponse.text();
-  const prepared = prepareSource(source);
-
-  const transformed = Babel.transform(prepared, {
-    presets: ["react"]
-  }).code;
-
-  const LoadedApp = new Function(
-    "React",
-    "LucideReact",
-    transformed + "\nreturn typeof App !== 'undefined' ? App : null;"
-  )(React, window.LucideReact);
-
-  if (typeof LoadedApp !== "function") {
-    throw new Error("Antithesis App component was not found after loading.");
-  }
-
-  return LoadedApp;
-}
-
 export default function App() {
   const [state, setState] = useState({
     status: "loading",
     message: "Loading Antithesis from GitHub…",
-    component: null,
-    commit: null
+    component: null
   });
 
   useEffect(() => {
     let alive = true;
-    let timer = null;
-    const commitRef = { current: null };
 
-    const boot = async () => {
+    (async () => {
       try {
         // lucide-react's UMD build expects React on the global object.
         // Canvas provides React to this entry as an ES module, so bridge only
@@ -203,41 +148,11 @@ export default function App() {
         }
 
         if (alive) {
-          commitRef.current = await fetchLatestCommit();
           setState({
             status: "success",
             message: "Antithesis loaded from GitHub.",
-            component: LoadedApp,
-            commit: commitRef.current
+            component: LoadedApp
           });
-
-          const poll = async () => {
-            if (!alive) return;
-
-            try {
-              const latestCommit = await fetchLatestCommit();
-
-              if (latestCommit !== commitRef.current) {
-                const latestComponent = await loadAntithesis(latestCommit);
-
-                if (!alive) return;
-
-                commitRef.current = latestCommit;
-                setState({
-                  status: "success",
-                  message: "Antithesis updated from GitHub.",
-                  component: latestComponent,
-                  commit: latestCommit
-                });
-              }
-            } catch (error) {
-              console.warn("[Antithesis Runtime]", error);
-            } finally {
-              if (alive) timer = setTimeout(poll, 30000);
-            }
-          };
-
-          timer = setTimeout(poll, 30000);
         }
       } catch (error) {
         console.error("[Phase 0.5]", error);
