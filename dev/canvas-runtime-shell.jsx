@@ -680,7 +680,7 @@ function Phase06Loader({
                   disabled={busy}
                   title="Lihat detail update dari GitHub"
                 >
-                  ⓘ  UPDATE INFO
+                  ⓘ
                 </LoaderButton>
 
                 <LoaderButton
@@ -941,25 +941,9 @@ export default function App() {
           busy: false
         }));
 
-        // Initial detection is intentionally non-blocking:
-        // the known-good app can become usable before the GitHub check finishes.
-        const latest = await getLatestRevision();
-
-        if (!alive || !latest) return;
-
-        const current = stored?.sha || null;
-        const hasUpdate = !current || current !== latest.sha;
-
-        setState(prev => ({
-          ...prev,
-          latestRevision: latest.shortSha,
-          latestFullSha: latest.sha,
-          hasUpdate,
-          status: hasUpdate ? "success" : prev.status,
-          statusText: hasUpdate
-            ? "Versi baru Antithesis tersedia dari GitHub."
-            : prev.statusText
-        }));
+        // Initial boot intentionally does not check GitHub.
+        // Update actions stay hidden until the user explicitly presses
+        // REFRESH / CHECK UPDATE.
       } catch (error) {
         if (!alive) return;
 
