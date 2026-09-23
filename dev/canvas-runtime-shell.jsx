@@ -541,6 +541,7 @@ function Phase06Loader({
   latestRevision,
   latestVersion,
   hasUpdate,
+  updateKind,
   onRefresh,
   onUpdate,
   onShowUpdateInfo,
@@ -623,14 +624,28 @@ function Phase06Loader({
               width: 7,
               height: 7,
               borderRadius: "50%",
-              background: isError ? "#f87171" : hasUpdate ? "#fbbf24" : "#4ade80",
+              background: isError
+                ? "#f87171"
+                : updateKind === "version"
+                  ? "#60a5fa"
+                  : updateKind === "revision"
+                    ? "#fbbf24"
+                    : "#4ade80",
               boxShadow: isError
                 ? "0 0 10px rgba(248,113,113,0.55)"
-                : hasUpdate
-                  ? "0 0 10px rgba(251,191,36,0.55)"
-                  : "0 0 10px rgba(74,222,128,0.55)"
+                : updateKind === "version"
+                  ? "0 0 10px rgba(96,165,250,0.55)"
+                  : updateKind === "revision"
+                    ? "0 0 10px rgba(251,191,36,0.55)"
+                    : "0 0 10px rgba(74,222,128,0.55)"
             }} />
-            {isError ? "Loader error" : hasUpdate ? "Update tersedia" : "Loader ready"}
+            {isError
+              ? "Loader error"
+              : updateKind === "version"
+                ? "🔵 VERSION UPDATE"
+                : updateKind === "revision"
+                  ? "🟡 REVISION UPDATE"
+                  : "🟢 LOADER READY"}
           </div>
 
           <div style={{
@@ -754,6 +769,7 @@ export default function App() {
     latestRevision: null,
     latestVersion: null,
     latestFullSha: null,
+    updateKind: null,
     updateInfo: null,
     updateInfoLoading: false,
     updateInfoError: null,
@@ -791,44 +807,49 @@ export default function App() {
     try {
       const latest = await getLatestRevision();
       const current = currentRevisionRef.current;
+      const currentVersion = state.currentVersion;
+      const sameRevision =
+        Boolean(current) &&
+        current !== "phase-0.5" &&
+        latest.sha.startsWith(current);
+      const versionChanged =
+        Boolean(currentVersion) &&
+        Boolean(latest.version) &&
+        currentVersion !== latest.version;
 
-      if (current && current !== "phase-0.5" && latest.sha.startsWith(current)) {
+      if (sameRevision) {
         setState(prev => ({
           ...prev,
           status: "success",
-          statusText: "Antithesis sudah menggunakan revision GitHub terbaru.",
+          statusText: "Current app and revision is up to date.",
           latestRevision: latest.shortSha,
           latestVersion: latest.version,
           latestFullSha: latest.sha,
+          updateKind: null,
           hasUpdate: false,
           busy: false
         }));
         return latest;
       }
 
-      if (current === latest.shortSha || (stored && stored.sha === latest.sha)) {
-        setState(prev => ({
-          ...prev,
-          status: "success",
-          statusText: "Tidak ada update baru. Revision aktif sudah terbaru.",
-          latestRevision: latest.shortSha,
-          latestFullSha: latest.sha,
-          hasUpdate: false,
-          busy: false
-        }));
-        return latest;
-      }
+      const updateKind = versionChanged ? "version" : "revision";
+      const statusText = versionChanged
+        ? "A new application version is available [" + latest.version + "]"
+        : "A newer revision is available [" + latest.shortSha + "]";
 
       setState(prev => ({
         ...prev,
         status: "success",
-        statusText: "Versi baru Antithesis tersedia dari GitHub.",
+        statusText,
         latestRevision: latest.shortSha,
         latestVersion: latest.version,
         latestFullSha: latest.sha,
+        updateKind,
         hasUpdate: true,
         busy: false
       }));
+
+      return latest;
 
       return latest;
     } catch (error) {
