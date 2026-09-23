@@ -670,27 +670,21 @@ function Phase06Loader({
 
           {hasUpdate && (
             <>
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1.35fr",
-                gap: 9
-              }}>
-                <LoaderButton
-                  onClick={onShowUpdateInfo}
-                  disabled={busy}
-                  title="Lihat detail update dari GitHub"
-                >
-                  ⓘ
-                </LoaderButton>
+              <LoaderButton
+                onClick={onUpdate}
+                disabled={busy}
+                primary
+              >
+                {busy ? "LOADING UPDATE…" : "UPDATE SEKARANG"}
+              </LoaderButton>
 
-                <LoaderButton
-                  onClick={onUpdate}
-                  disabled={busy}
-                  primary
-                >
-                  {busy ? "LOADING UPDATE…" : "UPDATE SEKARANG"}
-                </LoaderButton>
-              </div>
+              <LoaderButton
+                onClick={onShowUpdateInfo}
+                disabled={busy}
+                title="Lihat detail update dari GitHub"
+              >
+                UPDATE INFO
+              </LoaderButton>
             </>
           )}
 
