@@ -11,6 +11,9 @@ const GITHUB_COMMITS_URL =
 
 const STORAGE_KEY = "antithesis.canvas-runtime.phase06";
 
+const GITHUB_COMMIT_BASE_URL =
+  "https://api.github.com/repos/beyonderbliss/antithesis/commits/";
+
 const BABEL_URL =
   "https://unpkg.com/@babel/standalone@7.28.4/babel.min.js";
 
@@ -138,6 +141,44 @@ async function getLatestRevision() {
   };
 }
 
+async function getRevisionDetails(sha) {
+  if (!sha) {
+    throw new Error("Revision update tidak tersedia.");
+  }
+
+  const response = await fetch(
+    GITHUB_COMMIT_BASE_URL + encodeURIComponent(sha) + "?t=" + Date.now(),
+    {
+      cache: "no-store",
+      headers: {
+        Accept: "application/vnd.github+json"
+      }
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("GitHub update info HTTP " + response.status);
+  }
+
+  const commit = await response.json();
+
+  return {
+    sha: commit.sha || sha,
+    shortSha: (commit.sha || sha).slice(0, 7),
+    message: commit.commit?.message || "GitHub update",
+    date: commit.commit?.committer?.date || commit.commit?.author?.date || null,
+    files: Array.isArray(commit.files)
+      ? commit.files.map(file => ({
+          filename: file.filename,
+          status: file.status,
+          additions: file.additions || 0,
+          deletions: file.deletions || 0,
+          changes: file.changes || 0
+        }))
+      : []
+  };
+}
+
 async function compileAppFromSource(sourceUrl, revisionSha) {
   // lucide-react's UMD build expects React on the global object.
   // Canvas provides React to this entry as an ES module, so bridge only
@@ -243,6 +284,228 @@ function LoaderButton({ children, onClick, disabled, primary, title }) {
   );
 }
 
+function UpdateInfoOverlay({
+  info,
+  loading,
+  error,
+  onClose
+}) {
+  return (
+    <div style={{
+      position: "fixed",
+      inset: 0,
+      zIndex: 1000000,
+      padding: 18,
+      boxSizing: "border-box",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      background: "rgba(0,0,0,0.72)",
+      backdropFilter: "blur(10px)",
+      WebkitBackdropFilter: "blur(10px)"
+    }}>
+      <div style={{
+        width: "100%",
+        maxWidth: 520,
+        maxHeight: "calc(100vh - 36px)",
+        boxSizing: "border-box",
+        display: "flex",
+        flexDirection: "column",
+        borderRadius: 20,
+        border: "1px solid rgba(255,255,255,0.11)",
+        background: "#111116",
+        boxShadow: "0 30px 100px rgba(0,0,0,0.6)",
+        overflow: "hidden"
+      }}>
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          padding: "15px 16px",
+          borderBottom: "1px solid rgba(255,255,255,0.07)"
+        }}>
+          <div>
+            <div style={{
+              fontSize: 11,
+              fontWeight: 900,
+              letterSpacing: "0.14em",
+              color: "#e4e4e7"
+            }}>
+              UPDATE INFORMATION
+            </div>
+            <div style={{
+              marginTop: 4,
+              fontSize: 9,
+              color: "#71717a",
+              fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace"
+            }}>
+              {info?.shortSha ? "REVISION " + info.shortSha : "GITHUB REVISION"}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            title="Tutup update info"
+            aria-label="Tutup update info"
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 10,
+              border: "1px solid rgba(255,255,255,0.10)",
+              background: "rgba(255,255,255,0.045)",
+              color: "#d4d4d8",
+              fontSize: 18,
+              lineHeight: 1,
+              cursor: "pointer"
+            }}
+          >
+            ×
+          </button>
+        </div>
+
+        <div style={{
+          overflowY: "auto",
+          padding: 16,
+          minHeight: 0,
+          WebkitOverflowScrolling: "touch"
+        }}>
+          {loading && (
+            <div style={{
+              padding: 18,
+              borderRadius: 13,
+              background: "rgba(255,255,255,0.035)",
+              color: "#a1a1aa",
+              fontSize: 11,
+              lineHeight: 1.6
+            }}>
+              Memuat informasi update dari GitHub…
+            </div>
+          )}
+
+          {error && (
+            <div style={{
+              padding: 18,
+              borderRadius: 13,
+              background: "rgba(127,29,29,0.14)",
+              border: "1px solid rgba(248,113,113,0.18)",
+              color: "#fca5a5",
+              fontSize: 11,
+              lineHeight: 1.6
+            }}>
+              {error}
+            </div>
+          )}
+
+          {info && !loading && !error && (
+            <div style={{ display: "grid", gap: 14 }}>
+              <div style={{
+                padding: 14,
+                borderRadius: 14,
+                background: "rgba(255,255,255,0.035)",
+                border: "1px solid rgba(255,255,255,0.06)"
+              }}>
+                <div style={{
+                  fontSize: 9,
+                  color: "#71717a",
+                  fontWeight: 800,
+                  letterSpacing: "0.12em"
+                }}>
+                  COMMIT
+                </div>
+                <div style={{
+                  marginTop: 7,
+                  fontSize: 12,
+                  lineHeight: 1.5,
+                  color: "#e4e4e7",
+                  fontWeight: 700
+                }}>
+                  {info.message.split("\n")[0]}
+                </div>
+                {info.message.includes("\n") && (
+                  <pre style={{
+                    margin: "10px 0 0",
+                    whiteSpace: "pre-wrap",
+                    font: "10px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace",
+                    color: "#a1a1aa"
+                  }}>
+                    {info.message.split("\n").slice(1).join("\n").trim()}
+                  </pre>
+                )}
+              </div>
+
+              <div style={{
+                padding: 14,
+                borderRadius: 14,
+                background: "rgba(255,255,255,0.035)",
+                border: "1px solid rgba(255,255,255,0.06)"
+              }}>
+                <div style={{
+                  fontSize: 9,
+                  color: "#71717a",
+                  fontWeight: 800,
+                  letterSpacing: "0.12em",
+                  marginBottom: 9
+                }}>
+                  FILES CHANGED · {info.files.length}
+                </div>
+
+                {info.files.length === 0 ? (
+                  <div style={{ fontSize: 10, color: "#71717a" }}>
+                    GitHub tidak menyediakan detail file untuk revision ini.
+                  </div>
+                ) : (
+                  <div style={{ display: "grid", gap: 8 }}>
+                    {info.files.map((file, index) => (
+                      <div
+                        key={file.filename + "-" + index}
+                        style={{
+                          padding: "10px 11px",
+                          borderRadius: 10,
+                          background: "rgba(0,0,0,0.16)",
+                          border: "1px solid rgba(255,255,255,0.045)"
+                        }}
+                      >
+                        <div style={{
+                          fontSize: 10,
+                          color: "#d4d4d8",
+                          fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                          wordBreak: "break-word"
+                        }}>
+                          {file.filename}
+                        </div>
+                        <div style={{
+                          marginTop: 5,
+                          fontSize: 9,
+                          color: "#71717a",
+                          fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace"
+                        }}>
+                          {file.status || "modified"} · +{file.additions} / -{file.deletions}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {info.date && (
+                <div style={{
+                  fontSize: 9,
+                  color: "#52525b",
+                  fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace"
+                }}>
+                  {new Date(info.date).toLocaleString()}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Phase06Loader({
   status,
   statusText,
@@ -251,7 +514,7 @@ function Phase06Loader({
   hasUpdate,
   onRefresh,
   onUpdate,
-  onLaunch,
+  onShowUpdateInfo,
   busy
 }) {
   const isError = status === "error";
@@ -405,13 +668,29 @@ function Phase06Loader({
           </LoaderButton>
 
           {hasUpdate && (
-            <LoaderButton
-              onClick={onUpdate}
-              disabled={busy}
-              primary
-            >
-              {busy ? "LOADING UPDATE…" : "UPDATE SEKARANG"}
-            </LoaderButton>
+            <>
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1.35fr",
+                gap: 9
+              }}>
+                <LoaderButton
+                  onClick={onShowUpdateInfo}
+                  disabled={busy}
+                  title="Lihat detail update dari GitHub"
+                >
+                  ⓘ  UPDATE INFO
+                </LoaderButton>
+
+                <LoaderButton
+                  onClick={onUpdate}
+                  disabled={busy}
+                  primary
+                >
+                  {busy ? "LOADING UPDATE…" : "UPDATE SEKARANG"}
+                </LoaderButton>
+              </div>
+            </>
           )}
 
           <LoaderButton
@@ -449,6 +728,10 @@ export default function App() {
     currentRevision: stored?.shortSha || "phase-0.5",
     latestRevision: null,
     latestFullSha: null,
+    updateInfo: null,
+    updateInfoLoading: false,
+    updateInfoError: null,
+    showUpdateInfo: false,
     sourceUrl: stored?.sourceUrl || BASELINE_SOURCE_URL,
     hasUpdate: false,
     busy: true,
@@ -534,6 +817,41 @@ export default function App() {
   const loadAndValidate = async (sourceUrl, revisionSha) => {
     const LoadedApp = await compileAppFromSource(sourceUrl, revisionSha);
     return LoadedApp;
+  };
+
+  const showUpdateInfo = async () => {
+    const sha = state.latestFullSha;
+    if (!sha) return;
+
+    setState(prev => ({
+      ...prev,
+      showUpdateInfo: true,
+      updateInfoLoading: true,
+      updateInfoError: null
+    }));
+
+    try {
+      const info = await getRevisionDetails(sha);
+      setState(prev => ({
+        ...prev,
+        updateInfo: info,
+        updateInfoLoading: false,
+        updateInfoError: null
+      }));
+    } catch (error) {
+      setState(prev => ({
+        ...prev,
+        updateInfoLoading: false,
+        updateInfoError: String(error?.message || error)
+      }));
+    }
+  };
+
+  const closeUpdateInfo = () => {
+    setState(prev => ({
+      ...prev,
+      showUpdateInfo: false
+    }));
   };
 
   const updateToLatest = async () => {
@@ -726,8 +1044,18 @@ export default function App() {
           busy={state.busy}
           onRefresh={() => checkForUpdate(false)}
           onUpdate={updateToLatest}
+          onShowUpdateInfo={showUpdateInfo}
           onLaunch={launchAntithesis}
         />
+
+        {state.showUpdateInfo && (
+          <UpdateInfoOverlay
+            info={state.updateInfo}
+            loading={state.updateInfoLoading}
+            error={state.updateInfoError}
+            onClose={closeUpdateInfo}
+          />
+        )}
       </div>
     </div>
   );
