@@ -111,24 +111,6 @@ function storeRevision(revision) {
   }
 }
 
-function extractAppVersion(source) {
-  const match = String(source || "").match(/(?:const|let|var)\s+ANTITHESIS_VERSION\s*=\s*["']([^"']+)["']/);
-  return match?.[1] || "unknown";
-}
-
-async function getSourceVersion(sourceUrl, revisionSha) {
-  const response = await fetch(
-    sourceUrl + "?v=" + encodeURIComponent(revisionSha || Date.now()),
-    { cache: "no-store" }
-  );
-
-  if (!response.ok) {
-    throw new Error("Antithesis source HTTP " + response.status);
-  }
-
-  return extractAppVersion(await response.text());
-}
-
 async function getLatestRevision() {
   const response = await fetch(
     GITHUB_COMMITS_URL + "&t=" + Date.now(),
@@ -151,17 +133,9 @@ async function getLatestRevision() {
     throw new Error("GitHub tidak mengembalikan revision terbaru.");
   }
 
-  const sourceUrl =
-    MAIN_SOURCE_BASE_URL +
-    encodeURIComponent(latest.sha) +
-    "/antithesis_project1.jsx";
-
-  const version = await getSourceVersion(sourceUrl, latest.sha);
-
   return {
     sha: latest.sha,
     shortSha: latest.sha.slice(0, 7),
-    version,
     message: latest.commit?.message?.split("\n")[0] || "GitHub update",
     date: latest.commit?.committer?.date || latest.commit?.author?.date || null
   };
@@ -536,10 +510,7 @@ function Phase06Loader({
   status,
   statusText,
   currentRevision,
-  currentVersion,
   latestRevision,
-  latestVersion,
-  updateKind,
   hasUpdate,
   onRefresh,
   onUpdate,
@@ -548,8 +519,6 @@ function Phase06Loader({
   busy
 }) {
   const isError = status === "error";
-  const isVersionUpdate = updateKind === "version";
-  const isRevisionUpdate = updateKind === "revision";
 
   return (
     <div style={{
@@ -602,19 +571,15 @@ function Phase06Loader({
           borderRadius: 15,
           background: isError
             ? "rgba(127,29,29,0.14)"
-            : isVersionUpdate
-              ? "rgba(59,130,246,0.10)"
-              : isRevisionUpdate
-                ? "rgba(217,119,6,0.10)"
-                : "rgba(255,255,255,0.035)",
+            : hasUpdate
+              ? "rgba(217,119,6,0.10)"
+              : "rgba(255,255,255,0.035)",
           border: "1px solid " + (
             isError
               ? "rgba(248,113,113,0.18)"
-              : isVersionUpdate
-                ? "rgba(96,165,250,0.18)"
-                : isRevisionUpdate
-                  ? "rgba(251,191,36,0.18)"
-                  : "rgba(255,255,255,0.06)"
+              : hasUpdate
+                ? "rgba(251,191,36,0.18)"
+                : "rgba(255,255,255,0.06)"
           ),
           marginBottom: 14
         }}>
@@ -636,7 +601,7 @@ function Phase06Loader({
                   ? "0 0 10px rgba(251,191,36,0.55)"
                   : "0 0 10px rgba(74,222,128,0.55)"
             }} />
-            {isError ? "Loader error" : isVersionUpdate ? "VERSION UPDATE" : isRevisionUpdate ? "REVISION UPDATE" : "LOADER READY"}
+            {isError ? "Loader error" : hasUpdate ? "Update tersedia" : "Loader ready"}
           </div>
 
           <div style={{
@@ -645,11 +610,7 @@ function Phase06Loader({
             lineHeight: 1.55,
             color: "#a1a1aa"
           }}>
-            {isVersionUpdate
-              ? "A new application version is available [" + (latestVersion || "unknown") + "]"
-              : isRevisionUpdate
-                ? "A newer revision is available [" + (latestRevision || "unknown") + "]"
-                : statusText}
+            {statusText}
           </div>
         </div>
 
@@ -674,7 +635,7 @@ function Phase06Loader({
               fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
               color: "#d4d4d8"
             }}>
-              {currentRevision || "—"}{currentVersion ? " (" + currentVersion + ")" : ""}
+              {currentRevision || "—"}
             </div>
           </div>
 
@@ -691,9 +652,9 @@ function Phase06Loader({
               marginTop: 5,
               fontSize: 10,
               fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-              color: isVersionUpdate ? "#60a5fa" : isRevisionUpdate ? "#fbbf24" : "#d4d4d8"
+              color: hasUpdate ? "#fbbf24" : "#d4d4d8"
             }}>
-              {latestRevision || "—"}{latestVersion ? " (" + latestVersion + ")" : ""}
+              {latestRevision || "—"}
             </div>
           </div>
         </div>
@@ -709,13 +670,28 @@ function Phase06Loader({
 
           {hasUpdate && (
             <>
-              <LoaderButton onClick={onUpdate} disabled={busy} primary>
-                {busy ? "LOADING UPDATE…" : "UPDATE SEKARANG"}
-              </LoaderButton>
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1.35fr",
+                gap: 9
+              }}>
+                <LoaderButton
+                  onClick={onShowUpdateInfo}
+                  disabled={busy}
+                  title="Lihat detail update dari GitHub"
+                >
+                  ⓘ
+                </LoaderButton>
 
-              <LoaderButton onClick={onShowUpdateInfo} disabled={busy} title="Lihat detail update dari GitHub">
-                UPDATE INFO
-              </LoaderButton>
+                <LoaderButton
+                  onClick={onUpdate}
+                  disabled={busy}
+                  primary
+                >
+                  {busy ? "LOADING UPDATE…" : "UPDATE SEKARANG"}
+                </LoaderButton>
+              </div>
+            </>
           )}
 
           <LoaderButton
@@ -743,7 +719,7 @@ function Phase06Loader({
   );
 }
 
-function App() {
+export default function App() {
   const stored = readStoredRevision();
 
   const [state, setState] = useState({
@@ -751,11 +727,8 @@ function App() {
     statusText: "Memuat Antithesis yang sudah dikenal…",
     component: null,
     currentRevision: stored?.shortSha || "phase-0.5",
-    currentVersion: stored?.version || null,
     latestRevision: null,
-    latestVersion: null,
     latestFullSha: null,
-    updateKind: null,
     updateInfo: null,
     updateInfoLoading: false,
     updateInfoError: null,
@@ -793,7 +766,6 @@ function App() {
     try {
       const latest = await getLatestRevision();
       const current = currentRevisionRef.current;
-      const currentVersion = state.currentVersion;
 
       if (current && current !== "phase-0.5" && latest.sha.startsWith(current)) {
         setState(prev => ({
@@ -801,9 +773,7 @@ function App() {
           status: "success",
           statusText: "Antithesis sudah menggunakan revision GitHub terbaru.",
           latestRevision: latest.shortSha,
-          latestVersion: latest.version,
           latestFullSha: latest.sha,
-          updateKind: null,
           hasUpdate: false,
           busy: false
         }));
@@ -814,11 +784,9 @@ function App() {
         setState(prev => ({
           ...prev,
           status: "success",
-          statusText: "Current app and revision is up to date.",
+          statusText: "Tidak ada update baru. Revision aktif sudah terbaru.",
           latestRevision: latest.shortSha,
-          latestVersion: latest.version,
           latestFullSha: latest.sha,
-          updateKind: null,
           hasUpdate: false,
           busy: false
         }));
@@ -828,11 +796,9 @@ function App() {
       setState(prev => ({
         ...prev,
         status: "success",
-        statusText: "",
+        statusText: "Versi baru Antithesis tersedia dari GitHub.",
         latestRevision: latest.shortSha,
-        latestVersion: latest.version,
         latestFullSha: latest.sha,
-        updateKind: currentVersion && latest.version !== "unknown" && latest.version !== currentVersion ? "version" : "revision",
         hasUpdate: true,
         busy: false
       }));
@@ -918,7 +884,6 @@ function App() {
       storeRevision({
         sha: latest.sha,
         shortSha: latest.sha.slice(0, 7),
-        version: state.latestVersion || null,
         sourceUrl: sourceUrl
       });
 
@@ -963,7 +928,6 @@ function App() {
         const revisionSha = stored?.sha || "phase-0.5";
 
         const LoadedApp = await loadAndValidate(sourceUrl, revisionSha);
-        const currentVersion = await getSourceVersion(sourceUrl, revisionSha);
 
         if (!alive) return;
 
@@ -974,7 +938,6 @@ function App() {
           status: "checking",
           statusText: "Memeriksa revision GitHub terbaru…",
           component: LoadedApp,
-          currentVersion,
           busy: true
         }));
 
@@ -1008,7 +971,6 @@ function App() {
           storeRevision({
             sha: latest.sha,
             shortSha: latest.sha.slice(0, 7),
-            version: latest.version,
             sourceUrl: latestSourceUrl
           });
 
@@ -1022,12 +984,9 @@ function App() {
             statusText: "Antithesis terbaru sudah siap. Silakan launch.",
             component: LatestApp,
             currentRevision: latest.sha.slice(0, 7),
-            currentVersion: latest.version,
             latestRevision: latest.sha.slice(0, 7),
-            latestVersion: latest.version,
             latestFullSha: latest.sha,
             sourceUrl: latestSourceUrl,
-            updateKind: null,
             hasUpdate: false,
             busy: false
           }));
@@ -1037,11 +996,9 @@ function App() {
         setState(prev => ({
           ...prev,
           status: "success",
-          statusText: "Current app and revision is up to date.",
+          statusText: "Antithesis sudah menggunakan revision GitHub terbaru. Silakan launch.",
           latestRevision: latest.shortSha,
-          latestVersion: latest.version,
           latestFullSha: latest.sha,
-          updateKind: null,
           hasUpdate: false,
           busy: false
         }));
@@ -1069,10 +1026,8 @@ function App() {
       view: "loader",
       status: "success",
       statusText: prev.hasUpdate
-        ? prev.updateKind === "version"
-          ? "A new application version is available [" + (prev.latestVersion || "unknown") + "]"
-          : "A newer revision is available [" + (prev.latestRevision || "unknown") + "]"
-        : "Current app and revision is up to date.",
+        ? "Versi baru tersedia. Kembali ke loader untuk update."
+        : "Antithesis siap. Kamu bisa refresh/check GitHub kapan saja.",
       busy: false
     }));
   };
@@ -1127,10 +1082,7 @@ function App() {
           status={state.status}
           statusText={state.statusText}
           currentRevision={state.currentRevision}
-          currentVersion={state.currentVersion}
           latestRevision={state.latestRevision}
-          latestVersion={state.latestVersion}
-          updateKind={state.updateKind}
           hasUpdate={state.hasUpdate}
           busy={state.busy}
           onRefresh={() => checkForUpdate(false)}
@@ -1149,57 +1101,5 @@ function App() {
         )}
       </div>
     </div>
-  );
-}
-
-
-class CanvasRuntimeErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { error: null };
-  }
-  static getDerivedStateFromError(error) {
-    return { error };
-  }
-  componentDidCatch(error, info) {
-    console.error("[ANTITHESIS SHELL ERROR]", error, info);
-  }
-  render() {
-    if (!this.state.error) return this.props.children;
-    const error = this.state.error;
-    return (
-      <div style={{
-        minHeight: "100vh", boxSizing: "border-box", padding: 20,
-        background: "#08080b", color: "#f4f4f5",
-        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace"
-      }}>
-        <div style={{
-          maxWidth: 760, margin: "0 auto", padding: 20, borderRadius: 16,
-          border: "1px solid rgba(248,113,113,0.3)",
-          background: "rgba(127,29,29,0.14)"
-        }}>
-          <div style={{color:"#fca5a5",fontSize:13,fontWeight:900,letterSpacing:"0.08em"}}>
-            CANVAS RUNTIME ERROR
-          </div>
-          <div style={{
-            marginTop:12,color:"#e4e4e7",fontSize:12,lineHeight:1.6,
-            whiteSpace:"pre-wrap",wordBreak:"break-word"
-          }}>
-            {String(error?.stack || error?.message || error)}
-          </div>
-          <div style={{marginTop:14,color:"#71717a",fontSize:10,lineHeight:1.6}}>
-            Diagnostic shell: error ini ditampilkan agar sumber blank screen bisa dilacak tanpa Console.
-          </div>
-        </div>
-      </div>
-    );
-  }
-}
-
-export default function CanvasRuntimeShell() {
-  return (
-    <CanvasRuntimeErrorBoundary>
-      <App />
-    </CanvasRuntimeErrorBoundary>
   );
 }
