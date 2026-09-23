@@ -451,7 +451,8 @@ export default function App() {
     latestFullSha: null,
     sourceUrl: stored?.sourceUrl || BASELINE_SOURCE_URL,
     hasUpdate: false,
-    busy: true
+    busy: true,
+    view: "loader"
   });
 
   const activeComponentRef = useRef(null);
@@ -588,7 +589,8 @@ export default function App() {
     if (!activeComponentRef.current) return;
     setState(prev => ({
       ...prev,
-      status: "launched",
+      view: "app",
+      status: "success",
       statusText: "Antithesis sedang berjalan.",
       busy: false
     }));
@@ -656,6 +658,7 @@ export default function App() {
   const goToLoader = () => {
     setState(prev => ({
       ...prev,
+      view: "loader",
       status: "success",
       statusText: prev.hasUpdate
         ? "Versi baru tersedia. Kembali ke loader untuk update."
@@ -664,12 +667,17 @@ export default function App() {
     }));
   };
 
-  if (state.component && state.status === "launched") {
-    const LoadedApp = state.component;
+  const LoadedApp = state.component;
 
-    return (
-      <div style={{ minHeight: "100vh", position: "relative" }}>
-        <LoadedApp />
+  return (
+    <div style={{ minHeight: "100vh", position: "relative" }}>
+      <div
+        style={{
+          display: state.view === "app" ? "block" : "none",
+          minHeight: "100vh"
+        }}
+      >
+        {LoadedApp && <LoadedApp />}
 
         <button
           type="button"
@@ -698,20 +706,25 @@ export default function App() {
           ← LOADER
         </button>
       </div>
-    );
-  }
 
-  return (
-    <Phase06Loader
-      status={state.status}
-      statusText={state.statusText}
-      currentRevision={state.currentRevision}
-      latestRevision={state.latestRevision}
-      hasUpdate={state.hasUpdate}
-      busy={state.busy}
-      onRefresh={() => checkForUpdate(false)}
-      onUpdate={updateToLatest}
-      onLaunch={launchAntithesis}
-    />
+      <div
+        style={{
+          display: state.view === "app" ? "none" : "block",
+          minHeight: "100vh"
+        }}
+      >
+        <Phase06Loader
+          status={state.status}
+          statusText={state.statusText}
+          currentRevision={state.currentRevision}
+          latestRevision={state.latestRevision}
+          hasUpdate={state.hasUpdate}
+          busy={state.busy}
+          onRefresh={() => checkForUpdate(false)}
+          onUpdate={updateToLatest}
+          onLaunch={launchAntithesis}
+        />
+      </div>
+    </div>
   );
 }
