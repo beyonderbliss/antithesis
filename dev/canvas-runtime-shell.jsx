@@ -111,6 +111,11 @@ function storeRevision(revision) {
   }
 }
 
+function extractAppVersion(source) {
+  const match = String(source || "").match(/(?:const|let|var)\s+ANTITHESIS_VERSION\s*=\s*["']([^"']+)["']/);
+  return match?.[1] || "unknown";
+}
+
 async function getLatestRevision() {
   const response = await fetch(
     GITHUB_COMMITS_URL + "&t=" + Date.now(),
@@ -510,7 +515,10 @@ function Phase06Loader({
   status,
   statusText,
   currentRevision,
+  currentVersion,
   latestRevision,
+  latestVersion,
+  updateKind,
   hasUpdate,
   onRefresh,
   onUpdate,
@@ -519,6 +527,8 @@ function Phase06Loader({
   busy
 }) {
   const isError = status === "error";
+  const isVersionUpdate = updateKind === "version";
+  const isRevisionUpdate = updateKind === "revision";
 
   return (
     <div style={{
@@ -571,15 +581,19 @@ function Phase06Loader({
           borderRadius: 15,
           background: isError
             ? "rgba(127,29,29,0.14)"
-            : hasUpdate
-              ? "rgba(217,119,6,0.10)"
-              : "rgba(255,255,255,0.035)",
+            : isVersionUpdate
+              ? "rgba(59,130,246,0.10)"
+              : isRevisionUpdate
+                ? "rgba(217,119,6,0.10)"
+                : "rgba(255,255,255,0.035)",
           border: "1px solid " + (
             isError
               ? "rgba(248,113,113,0.18)"
-              : hasUpdate
-                ? "rgba(251,191,36,0.18)"
-                : "rgba(255,255,255,0.06)"
+              : isVersionUpdate
+                ? "rgba(96,165,250,0.18)"
+                : isRevisionUpdate
+                  ? "rgba(251,191,36,0.18)"
+                  : "rgba(255,255,255,0.06)"
           ),
           marginBottom: 14
         }}>
@@ -601,7 +615,7 @@ function Phase06Loader({
                   ? "0 0 10px rgba(251,191,36,0.55)"
                   : "0 0 10px rgba(74,222,128,0.55)"
             }} />
-            {isError ? "Loader error" : hasUpdate ? "Update tersedia" : "Loader ready"}
+            {isError ? "Loader error" : isVersionUpdate ? "VERSION UPDATE" : isRevisionUpdate ? "REVISION UPDATE" : "LOADER READY"}
           </div>
 
           <div style={{
@@ -610,7 +624,11 @@ function Phase06Loader({
             lineHeight: 1.55,
             color: "#a1a1aa"
           }}>
-            {statusText}
+            {isVersionUpdate
+              ? "A new application version is available [" + (latestVersion || "unknown") + "]"
+              : isRevisionUpdate
+                ? "A newer revision is available [" + (latestRevision || "unknown") + "]"
+                : statusText}
           </div>
         </div>
 
@@ -635,7 +653,7 @@ function Phase06Loader({
               fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
               color: "#d4d4d8"
             }}>
-              {currentRevision || "—"}
+              {currentRevision || "—"}{currentVersion ? " (" + currentVersion + ")" : ""}
             </div>
           </div>
 
@@ -652,9 +670,9 @@ function Phase06Loader({
               marginTop: 5,
               fontSize: 10,
               fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-              color: hasUpdate ? "#fbbf24" : "#d4d4d8"
+              color: isVersionUpdate ? "#60a5fa" : isRevisionUpdate ? "#fbbf24" : "#d4d4d8"
             }}>
-              {latestRevision || "—"}
+              {latestRevision || "—"}{latestVersion ? " (" + latestVersion + ")" : ""}
             </div>
           </div>
         </div>
@@ -670,28 +688,13 @@ function Phase06Loader({
 
           {hasUpdate && (
             <>
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1.35fr",
-                gap: 9
-              }}>
-                <LoaderButton
-                  onClick={onShowUpdateInfo}
-                  disabled={busy}
-                  title="Lihat detail update dari GitHub"
-                >
-                  ⓘ
-                </LoaderButton>
+              <LoaderButton onClick={onUpdate} disabled={busy} primary>
+                {busy ? "LOADING UPDATE…" : "UPDATE SEKARANG"}
+              </LoaderButton>
 
-                <LoaderButton
-                  onClick={onUpdate}
-                  disabled={busy}
-                  primary
-                >
-                  {busy ? "LOADING UPDATE…" : "UPDATE SEKARANG"}
-                </LoaderButton>
-              </div>
-            </>
+              <LoaderButton onClick={onShowUpdateInfo} disabled={busy} title="Lihat detail update dari GitHub">
+                UPDATE INFO
+              </LoaderButton>
           )}
 
           <LoaderButton
@@ -727,8 +730,11 @@ export default function App() {
     statusText: "Memuat Antithesis yang sudah dikenal…",
     component: null,
     currentRevision: stored?.shortSha || "phase-0.5",
+    currentVersion: stored?.version || null,
     latestRevision: null,
+    latestVersion: null,
     latestFullSha: null,
+    updateKind: null,
     updateInfo: null,
     updateInfoLoading: false,
     updateInfoError: null,
@@ -766,6 +772,7 @@ export default function App() {
     try {
       const latest = await getLatestRevision();
       const current = currentRevisionRef.current;
+      const currentVersion = state.currentVersion;
 
       if (current && current !== "phase-0.5" && latest.sha.startsWith(current)) {
         setState(prev => ({
@@ -773,7 +780,9 @@ export default function App() {
           status: "success",
           statusText: "Antithesis sudah menggunakan revision GitHub terbaru.",
           latestRevision: latest.shortSha,
+          latestVersion: latest.version,
           latestFullSha: latest.sha,
+          updateKind: null,
           hasUpdate: false,
           busy: false
         }));
@@ -784,9 +793,11 @@ export default function App() {
         setState(prev => ({
           ...prev,
           status: "success",
-          statusText: "Tidak ada update baru. Revision aktif sudah terbaru.",
+          statusText: "Current app and revision is up to date.",
           latestRevision: latest.shortSha,
+          latestVersion: latest.version,
           latestFullSha: latest.sha,
+          updateKind: null,
           hasUpdate: false,
           busy: false
         }));
@@ -796,9 +807,11 @@ export default function App() {
       setState(prev => ({
         ...prev,
         status: "success",
-        statusText: "Versi baru Antithesis tersedia dari GitHub.",
+        statusText: "",
         latestRevision: latest.shortSha,
+        latestVersion: latest.version,
         latestFullSha: latest.sha,
+        updateKind: currentVersion && latest.version !== "unknown" && latest.version !== currentVersion ? "version" : "revision",
         hasUpdate: true,
         busy: false
       }));
@@ -884,6 +897,7 @@ export default function App() {
       storeRevision({
         sha: latest.sha,
         shortSha: latest.sha.slice(0, 7),
+        version: state.latestVersion || null,
         sourceUrl: sourceUrl
       });
 
@@ -928,6 +942,7 @@ export default function App() {
         const revisionSha = stored?.sha || "phase-0.5";
 
         const LoadedApp = await loadAndValidate(sourceUrl, revisionSha);
+        const currentVersion = await getSourceVersion(sourceUrl, revisionSha);
 
         if (!alive) return;
 
@@ -938,6 +953,7 @@ export default function App() {
           status: "checking",
           statusText: "Memeriksa revision GitHub terbaru…",
           component: LoadedApp,
+          currentVersion,
           busy: true
         }));
 
@@ -984,9 +1000,12 @@ export default function App() {
             statusText: "Antithesis terbaru sudah siap. Silakan launch.",
             component: LatestApp,
             currentRevision: latest.sha.slice(0, 7),
+            currentVersion: latest.version,
             latestRevision: latest.sha.slice(0, 7),
+            latestVersion: latest.version,
             latestFullSha: latest.sha,
             sourceUrl: latestSourceUrl,
+            updateKind: null,
             hasUpdate: false,
             busy: false
           }));
@@ -996,9 +1015,11 @@ export default function App() {
         setState(prev => ({
           ...prev,
           status: "success",
-          statusText: "Antithesis sudah menggunakan revision GitHub terbaru. Silakan launch.",
+          statusText: "Current app and revision is up to date.",
           latestRevision: latest.shortSha,
+          latestVersion: latest.version,
           latestFullSha: latest.sha,
+          updateKind: null,
           hasUpdate: false,
           busy: false
         }));
@@ -1026,8 +1047,10 @@ export default function App() {
       view: "loader",
       status: "success",
       statusText: prev.hasUpdate
-        ? "Versi baru tersedia. Kembali ke loader untuk update."
-        : "Antithesis siap. Kamu bisa refresh/check GitHub kapan saja.",
+        ? prev.updateKind === "version"
+          ? "A new application version is available [" + (prev.latestVersion || "unknown") + "]"
+          : "A newer revision is available [" + (prev.latestRevision || "unknown") + "]"
+        : "Current app and revision is up to date.",
       busy: false
     }));
   };
@@ -1082,7 +1105,10 @@ export default function App() {
           status={state.status}
           statusText={state.statusText}
           currentRevision={state.currentRevision}
+          currentVersion={state.currentVersion}
           latestRevision={state.latestRevision}
+          latestVersion={state.latestVersion}
+          updateKind={state.updateKind}
           hasUpdate={state.hasUpdate}
           busy={state.busy}
           onRefresh={() => checkForUpdate(false)}
