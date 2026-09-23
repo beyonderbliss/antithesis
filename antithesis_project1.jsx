@@ -52,6 +52,8 @@ import {
 
 const apiKey = ""; // API Key bawaan runtime default
 
+const ANTITHESIS_VERSION = "v0.6.1"; // Phase 0.6 update-test build
+
 
 
 // ===================================================
@@ -7759,6 +7761,9 @@ setInpaintDisplayMasks(prev => {
       </h1>
       <p className="text-[13px] text-[#e5c158]/90 font-normal mt-1.5 leading-none tracking-wide ">
         𝖙𝖍𝖊 𝖈𝖗𝖊𝖆𝖙𝖔𝖗 𝖎𝖘 𝖙𝖍𝖊 𝖌𝖔𝖉 𝖔𝖋 𝖍𝖎𝖘 𝖈𝖆𝖓𝖛𝖆𝖘 ⋆
+      </p>
+      <p className="text-[9px] text-neutral-500 font-mono mt-1 leading-none tracking-wider">
+        {ANTITHESIS_VERSION} · UPDATE TEST BUILD
       </p>
     </div>
   </div>
