@@ -935,15 +935,73 @@ export default function App() {
 
         setState(prev => ({
           ...prev,
-          status: "success",
-          statusText: "Antithesis siap. Silakan cek update atau launch.",
+          status: "checking",
+          statusText: "Memeriksa revision GitHub terbaru…",
           component: LoadedApp,
-          busy: false
+          busy: true
         }));
 
-        // Initial boot intentionally does not check GitHub.
-        // Update actions stay hidden until the user explicitly presses
-        // REFRESH / CHECK UPDATE.
+        // First loader boot is special:
+        // silently check GitHub and, when a newer revision exists,
+        // load it immediately. The user should only need to click
+        // LAUNCH ANTITHESIS. Update controls remain hidden on this boot.
+        const latest = await getLatestRevision();
+
+        if (!alive) return;
+
+        const current = stored?.sha || revisionSha;
+        const latestIsNewer =
+          !stored ||
+          current === "phase-0.5" ||
+          !latest.sha.startsWith(current);
+
+        if (latestIsNewer) {
+          const latestSourceUrl =
+            MAIN_SOURCE_BASE_URL +
+            encodeURIComponent(latest.sha) +
+            "/antithesis_project1.jsx";
+
+          const LatestApp = await loadAndValidate(
+            latestSourceUrl,
+            latest.sha
+          );
+
+          if (!alive) return;
+
+          storeRevision({
+            sha: latest.sha,
+            shortSha: latest.sha.slice(0, 7),
+            sourceUrl: latestSourceUrl
+          });
+
+          activeComponentRef.current = LatestApp;
+
+          currentRevisionRef.current = latest.sha.slice(0, 7);
+
+          setState(prev => ({
+            ...prev,
+            status: "success",
+            statusText: "Antithesis terbaru sudah siap. Silakan launch.",
+            component: LatestApp,
+            currentRevision: latest.sha.slice(0, 7),
+            latestRevision: latest.sha.slice(0, 7),
+            latestFullSha: latest.sha,
+            sourceUrl: latestSourceUrl,
+            hasUpdate: false,
+            busy: false
+          }));
+          return;
+        }
+
+        setState(prev => ({
+          ...prev,
+          status: "success",
+          statusText: "Antithesis sudah menggunakan revision GitHub terbaru. Silakan launch.",
+          latestRevision: latest.shortSha,
+          latestFullSha: latest.sha,
+          hasUpdate: false,
+          busy: false
+        }));
       } catch (error) {
         if (!alive) return;
 
