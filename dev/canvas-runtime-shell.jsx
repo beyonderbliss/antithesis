@@ -139,13 +139,37 @@ async function getLatestRevision() {
 }
 
 async function compileAppFromSource(sourceUrl, revisionSha) {
-  const [sourceResponse] = await Promise.all([
-    fetch(sourceUrl + "?v=" + encodeURIComponent(revisionSha || Date.now()), {
-      cache: "no-store"
-    }),
-    loadScript(BABEL_URL, "Babel"),
-    loadScript(LUCIDE_URL, "LucideReact")
-  ]);
+  // lucide-react's UMD build expects React on the global object.
+  // Canvas provides React to this entry as an ES module, so bridge only
+  // during Lucide initialization and restore the previous global after.
+  // This is the same verified React/Lucide bootstrap used by Phase 0.5.
+  const previousGlobalReact = window.React;
+  const previousGlobalReactLower = window.react;
+  window.React = React;
+  window.react = React;
+
+  let sourceResponse;
+  try {
+    [sourceResponse] = await Promise.all([
+      fetch(sourceUrl + "?v=" + encodeURIComponent(revisionSha || Date.now()), {
+        cache: "no-store"
+      }),
+      loadScript(BABEL_URL, "Babel"),
+      loadScript(LUCIDE_URL, "LucideReact")
+    ]);
+  } finally {
+    if (previousGlobalReact === undefined) {
+      try { delete window.React; } catch {}
+    } else {
+      window.React = previousGlobalReact;
+    }
+
+    if (previousGlobalReactLower === undefined) {
+      try { delete window.react; } catch {}
+    } else {
+      window.react = previousGlobalReactLower;
+    }
+  }
 
   if (!sourceResponse.ok) {
     throw new Error("Antithesis source HTTP " + sourceResponse.status);
