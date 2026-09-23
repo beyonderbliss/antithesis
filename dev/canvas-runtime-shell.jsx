@@ -132,43 +132,6 @@ async function loadAntithesis(commitSha) {
   return LoadedApp;
 }
 
-class RuntimeErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { error: null };
-  }
-
-  static getDerivedStateFromError(error) {
-    return { error };
-  }
-
-  componentDidCatch(error, info) {
-    console.error("[Antithesis Runtime] LoadedApp render error:", error, info);
-  }
-
-  render() {
-    if (this.state.error) {
-      const error = this.state.error;
-      return (
-        <div style={{
-          minHeight: "100vh",
-          padding: 24,
-          fontFamily: "monospace",
-          background: "#111",
-          color: "#fff",
-          whiteSpace: "pre-wrap",
-          overflow: "auto"
-        }}>
-          <h2 style={{ color: "#ff6b6b" }}>Antithesis Runtime — LoadedApp Error</h2>
-          <p>{String(error?.message || error)}</p>
-          <pre>{String(error?.stack || "")}</pre>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
 export default function App() {
   const [state, setState] = useState({
     status: "loading",
@@ -243,7 +206,7 @@ export default function App() {
           commitRef.current = await fetchLatestCommit();
           setState({
             status: "success",
-            message: "Antithesis loaded from GitHub (runtime shell).",
+            message: "Antithesis loaded from GitHub.",
             component: LoadedApp,
             commit: commitRef.current
           });
@@ -295,7 +258,7 @@ export default function App() {
 
   if (state.component) {
     const LoadedApp = state.component;
-    return <RuntimeErrorBoundary><LoadedApp /></RuntimeErrorBoundary>;
+    return <LoadedApp />;
   }
 
   return (
