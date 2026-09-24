@@ -84,7 +84,10 @@ const ANTITHESIS_CORE = {
     "https://raw.githubusercontent.com/beyonderbliss/antithesis/main/src/gist/settings-drawer.js",
     
   promptTemplates:
-    "https://raw.githubusercontent.com/beyonderbliss/antithesis/main/src/gist/prompt-templates.js"
+    "https://raw.githubusercontent.com/beyonderbliss/antithesis/main/src/gist/prompt-templates.js",
+
+  idUtils:
+    "https://raw.githubusercontent.com/beyonderbliss/antithesis/main/src/gist/id-utils.js"
 };
 
 // ===================================================
@@ -140,6 +143,7 @@ let ANTITHESIS_METADATA_UTILS = null;
 let ANTITHESIS_VOICE_UTILS = null;
 let ANTITHESIS_SETTINGS_DRAWER = null;
 let ANTITHESIS_PROMPT_TEMPLATES = null;
+let ANTITHESIS_ID_UTILS = null;
 
 // ===================================================
 // INPAINT UTILS BRIDGE
@@ -486,7 +490,16 @@ useEffect(() => {
   // IMAGE REGISTRY HELPERS — STEP 1
   // ==============================================
   const createImageId = (type = 'image') => {
-    return `${type}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    if (
+      !ANTITHESIS_ID_UTILS ||
+      typeof ANTITHESIS_ID_UTILS.createImageId !== "function"
+    ) {
+      throw new Error(
+        "ANTITHESIS_CORE idUtils belum siap."
+      );
+    }
+
+    return ANTITHESIS_ID_UTILS.createImageId(type);
   };
     const getImageById = (imageId) => {
     if (!imageId) return null;
@@ -1698,6 +1711,46 @@ Do not modify anything that the user did not request.
     cancelled = true;
   };
 }, []);
+// ===================================================
+// ANTITHESIS CORE — LOAD ID UTILS
+// ===================================================
+
+useEffect(() => {
+  let cancelled = false;
+
+  const loadIdUtils = async () => {
+    try {
+      const module =
+        await loadAntithesisModule("idUtils");
+
+      if (cancelled) return;
+
+      ANTITHESIS_ID_UTILS = module;
+
+      addLog(
+        "[External Module] id-utils.js berhasil dimuat via ANTITHESIS_CORE!",
+        "success"
+      );
+    } catch (error) {
+      console.error(
+        "[External Module] Gagal memuat id-utils.js:",
+        error
+      );
+
+      addLog(
+        `[External Module] id-utils.js gagal dimuat: ${error.message}`,
+        "error"
+      );
+    }
+  };
+
+  loadIdUtils();
+
+  return () => {
+    cancelled = true;
+  };
+}, []);
+
 // ===================================================
 // ANTITHESIS CORE — LOAD IMAGE UTILS
 // ===================================================
