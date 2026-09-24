@@ -1027,7 +1027,7 @@ function Phase06Loader({
 
           <LoaderButton
             onClick={onLaunch}
-            disabled={busy || status === "loading"}
+            disabled={!stateComponentReady || status === "loading" || status === "updating"}
             primary={!hasUpdate}
           >
             LAUNCH ANTITHESIS
@@ -1481,6 +1481,7 @@ export default function App() {
   };
 
   const LoadedApp = state.component;
+  const stateComponentReady = Boolean(LoadedApp && activeComponentRef.current);
 
   const clearRuntimeDiagnostics = () => {
     setState(prev => ({ ...prev, runtimeErrors: [] }));
