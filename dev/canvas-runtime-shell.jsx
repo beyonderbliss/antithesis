@@ -537,13 +537,11 @@ function AntithesisConsolePanel({
   entries,
   filter,
   onFilter,
-  onClose,
   onClear,
   expanded,
   onToggleExpand
 }) {
   const [exportOpen, setExportOpen] = useState(false);
-  const [exportMode, setExportMode] = useState("all");
   const [copyStatus, setCopyStatus] = useState(false);
   const scrollRef = useRef(null);
   const [atBottom, setAtBottom] = useState(true);
@@ -635,8 +633,7 @@ function AntithesisConsolePanel({
   };
 
   const filterButton = (level, label) => {
-    const active = filter === level || (filter === "all");
-    const selected = filter === level;
+      const selected = filter === level;
     const opacity = filter === "all" ? 1 : selected ? 1 : 0.30;
 
     return (
@@ -1084,7 +1081,6 @@ export default function App() {
     busy: true,
     view: "loader",
     runtimeErrors: [],
-    showRuntimeDiagnostics: false,
     diagnosticFilter: "all",
     diagnosticExpanded: false
   });
@@ -1494,14 +1490,6 @@ export default function App() {
 
   const LoadedApp = state.component;
 
-  const showRuntimeDiagnostics = () => {
-    setState(prev => ({ ...prev, showRuntimeDiagnostics: true }));
-  };
-
-  const closeRuntimeDiagnostics = () => {
-    setState(prev => ({ ...prev, showRuntimeDiagnostics: false, diagnosticExpanded: false }));
-  };
-
   const clearRuntimeDiagnostics = () => {
     setState(prev => ({ ...prev, runtimeErrors: [] }));
   };
@@ -1572,8 +1560,6 @@ export default function App() {
           onUpdate={updateToLatest}
           onShowUpdateInfo={showUpdateInfo}
           onLaunch={launchAntithesis}
-          runtimeErrorCount={state.runtimeErrors.length}
-          onShowDiagnostics={showRuntimeDiagnostics}
         />
 
         {state.showUpdateInfo && (
@@ -1586,17 +1572,14 @@ export default function App() {
         )}
       </div>
 
-      {state.showRuntimeDiagnostics && (
-        <AntithesisConsolePanel
-          entries={state.runtimeErrors}
-          filter={state.diagnosticFilter}
-          onFilter={setDiagnosticFilter}
-          onClose={closeRuntimeDiagnostics}
-          onClear={clearRuntimeDiagnostics}
-          expanded={state.diagnosticExpanded}
-          onToggleExpand={toggleDiagnosticExpand}
-        />
-      )}
+      <AntithesisConsolePanel
+        entries={state.runtimeErrors}
+        filter={state.diagnosticFilter}
+        onFilter={setDiagnosticFilter}
+        onClear={clearRuntimeDiagnostics}
+        expanded={state.diagnosticExpanded}
+        onToggleExpand={toggleDiagnosticExpand}
+      />
     </div>
   );
 }
