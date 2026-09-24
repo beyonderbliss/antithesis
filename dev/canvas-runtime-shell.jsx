@@ -682,6 +682,7 @@ function AntithesisConsolePanel({
       alignItems: expanded ? "stretch" : "flex-end",
       justifyContent: "center",
       background: expanded ? "rgba(0,0,0,0.86)" : "transparent",
+      pointerEvents: expanded ? "auto" : "none",
       backdropFilter: expanded ? "blur(8px)" : "none",
       WebkitBackdropFilter: expanded ? "blur(8px)" : "none"
     }}>
@@ -696,6 +697,7 @@ function AntithesisConsolePanel({
         borderRadius: expanded ? 0 : 16,
         border: expanded ? "none" : "1px solid rgba(255,255,255,0.10)",
         background: "#09090b",
+        pointerEvents: "auto",
         boxShadow: expanded ? "none" : "0 20px 70px rgba(0,0,0,0.60)",
         overflow: "hidden"
       }}>
