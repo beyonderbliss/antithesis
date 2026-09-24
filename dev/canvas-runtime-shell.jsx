@@ -840,8 +840,6 @@ function Phase06Loader({
   onShowUpdateInfo,
   onLaunch,
   busy,
-  runtimeErrorCount,
-  onShowDiagnostics
 }) {
   const isError = status === "error";
 
