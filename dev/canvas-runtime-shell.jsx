@@ -1567,14 +1567,16 @@ export default function App() {
         )}
       </div>
 
-      <AntithesisConsolePanel
-        entries={state.runtimeErrors}
-        filter={state.diagnosticFilter}
-        onFilter={setDiagnosticFilter}
-        onClear={clearRuntimeDiagnostics}
-        expanded={state.diagnosticExpanded}
-        onToggleExpand={toggleDiagnosticExpand}
-      />
+      {state.view === "loader" && (
+        <AntithesisConsolePanel
+          entries={state.runtimeErrors}
+          filter={state.diagnosticFilter}
+          onFilter={setDiagnosticFilter}
+          onClear={clearRuntimeDiagnostics}
+          expanded={state.diagnosticExpanded}
+          onToggleExpand={toggleDiagnosticExpand}
+        />
+      )}
     </div>
   );
 }
