@@ -1027,7 +1027,7 @@ function Phase06Loader({
 
           <LoaderButton
             onClick={onLaunch}
-            disabled={!stateComponentReady || status === "loading" || status === "updating"}
+            disabled={status === "loading" || status === "updating"}
             primary={!hasUpdate}
           >
             LAUNCH ANTITHESIS
