@@ -533,6 +533,111 @@ function UpdateInfoOverlay({
   );
 }
 
+function RuntimeDiagnosticsPanel({ errors, onClose, onClear }) {
+  return (
+    <div style={{
+      position: "fixed",
+      inset: 0,
+      zIndex: 1000001,
+      padding: 18,
+      boxSizing: "border-box",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      background: "rgba(0,0,0,0.76)",
+      backdropFilter: "blur(10px)",
+      WebkitBackdropFilter: "blur(10px)"
+    }}>
+      <div style={{
+        width: "100%",
+        maxWidth: 620,
+        maxHeight: "calc(100vh - 36px)",
+        display: "flex",
+        flexDirection: "column",
+        boxSizing: "border-box",
+        borderRadius: 20,
+        border: "1px solid rgba(248,113,113,0.20)",
+        background: "#111116",
+        boxShadow: "0 30px 100px rgba(0,0,0,0.65)",
+        overflow: "hidden"
+      }}>
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          padding: "15px 16px",
+          borderBottom: "1px solid rgba(255,255,255,0.07)"
+        }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: "0.14em", color: "#f4f4f5" }}>
+              RUNTIME DIAGNOSTICS
+            </div>
+            <div style={{ marginTop: 4, fontSize: 9, color: "#71717a", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
+              {errors.length} captured event{errors.length === 1 ? "" : "s"}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="button" onClick={onClear} style={{
+              minHeight: 34, padding: "0 11px", borderRadius: 9,
+              border: "1px solid rgba(255,255,255,0.10)",
+              background: "rgba(255,255,255,0.045)", color: "#a1a1aa",
+              fontSize: 9, fontWeight: 800, cursor: "pointer"
+            }}>CLEAR</button>
+            <button type="button" onClick={onClose} aria-label="Tutup runtime diagnostics" style={{
+              width: 34, height: 34, borderRadius: 9,
+              border: "1px solid rgba(255,255,255,0.10)",
+              background: "rgba(255,255,255,0.045)", color: "#d4d4d8",
+              fontSize: 18, lineHeight: 1, cursor: "pointer"
+            }}>×</button>
+          </div>
+        </div>
+
+        <div style={{ overflowY: "auto", padding: 14, minHeight: 0, WebkitOverflowScrolling: "touch" }}>
+          {errors.length === 0 ? (
+            <div style={{ padding: 18, borderRadius: 13, background: "rgba(255,255,255,0.035)", color: "#71717a", fontSize: 11, lineHeight: 1.6 }}>
+              Belum ada runtime error yang tertangkap.
+            </div>
+          ) : (
+            <div style={{ display: "grid", gap: 10 }}>
+              {errors.map((entry, index) => (
+                <div key={entry.id || index} style={{
+                  padding: 13,
+                  borderRadius: 13,
+                  background: "rgba(127,29,29,0.10)",
+                  border: "1px solid rgba(248,113,113,0.14)"
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginBottom: 8 }}>
+                    <div style={{ fontSize: 9, fontWeight: 900, letterSpacing: "0.10em", color: "#fca5a5" }}>
+                      {entry.type}
+                    </div>
+                    <div style={{ fontSize: 8, color: "#71717a", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
+                      {entry.time}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 11, lineHeight: 1.55, color: "#e4e4e7", wordBreak: "break-word" }}>
+                    {entry.message}
+                  </div>
+                  {entry.location && (
+                    <div style={{ marginTop: 7, fontSize: 9, lineHeight: 1.5, color: "#a1a1aa", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", wordBreak: "break-all" }}>
+                      {entry.location}
+                    </div>
+                  )}
+                  {entry.stack && (
+                    <pre style={{ margin: "9px 0 0", whiteSpace: "pre-wrap", font: "9px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace", color: "#a1a1aa", wordBreak: "break-word" }}>
+                      {entry.stack}
+                    </pre>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Phase06Loader({
   status,
   statusText,
@@ -546,7 +651,9 @@ function Phase06Loader({
   onUpdate,
   onShowUpdateInfo,
   onLaunch,
-  busy
+  busy,
+  runtimeErrorCount,
+  onShowDiagnostics
 }) {
   const isError = status === "error";
 
@@ -739,6 +846,15 @@ function Phase06Loader({
           >
             LAUNCH ANTITHESIS
           </LoaderButton>
+
+          {runtimeErrorCount > 0 && (
+            <LoaderButton
+              onClick={onShowDiagnostics}
+              title="Lihat error runtime yang ditangkap Loader"
+            >
+              RUNTIME ERRORS · {runtimeErrorCount}
+            </LoaderButton>
+          )}
         </div>
 
         <div style={{
@@ -777,11 +893,76 @@ export default function App() {
     sourceUrl: stored?.sourceUrl || BASELINE_SOURCE_URL,
     hasUpdate: false,
     busy: true,
-    view: "loader"
+    view: "loader",
+    runtimeErrors: [],
+    showRuntimeDiagnostics: false
   });
 
   const activeComponentRef = useRef(null);
   const currentRevisionRef = useRef(stored?.shortSha || "phase-0.5");
+
+  const recordRuntimeError = (entry) => {
+    setState(prev => ({
+      ...prev,
+      runtimeErrors: [entry, ...prev.runtimeErrors].slice(0, 50),
+      status: prev.view === "app" ? "error" : prev.status,
+      statusText: prev.view === "app"
+        ? "Antithesis mengalami runtime error. Buka RUNTIME ERRORS untuk detail."
+        : prev.statusText
+    }));
+  };
+
+  useEffect(() => {
+    const makeEntry = (type, message, stack, location) => ({
+      id: Date.now() + "_" + Math.random().toString(36).slice(2, 8),
+      type,
+      message: String(message || "Unknown runtime error"),
+      stack: stack ? String(stack) : "",
+      location: location ? String(location) : "",
+      time: new Date().toLocaleTimeString()
+    });
+
+    const handleWindowError = (event) => {
+      const error = event.error;
+      recordRuntimeError(makeEntry(
+        "UNCAUGHT ERROR",
+        event.message || error?.message || "Unknown uncaught error",
+        error?.stack,
+        event.filename ? event.filename + ":" + event.lineno + ":" + event.colno : ""
+      ));
+    };
+
+    const handleUnhandledRejection = (event) => {
+      const reason = event.reason;
+      recordRuntimeError(makeEntry(
+        "UNHANDLED PROMISE REJECTION",
+        reason?.message || String(reason || "Unknown promise rejection"),
+        reason?.stack,
+        ""
+      ));
+    };
+
+    window.addEventListener("error", handleWindowError);
+    window.addEventListener("unhandledrejection", handleUnhandledRejection);
+
+    window.__ANTITHESIS_RUNTIME__ = {
+      reportError: (error, context = "ANTITHESIS") => {
+        const message = error?.message || String(error || "Unknown runtime error");
+        recordRuntimeError(makeEntry(
+          "ANTITHESIS " + String(context).toUpperCase(),
+          message,
+          error?.stack,
+          ""
+        ));
+      }
+    };
+
+    return () => {
+      window.removeEventListener("error", handleWindowError);
+      window.removeEventListener("unhandledrejection", handleUnhandledRejection);
+      try { delete window.__ANTITHESIS_RUNTIME__; } catch {}
+    };
+  }, []);
 
   const applyComponent = (LoadedApp, patch = {}) => {
     activeComponentRef.current = LoadedApp;
@@ -1093,6 +1274,18 @@ export default function App() {
 
   const LoadedApp = state.component;
 
+  const showRuntimeDiagnostics = () => {
+    setState(prev => ({ ...prev, showRuntimeDiagnostics: true }));
+  };
+
+  const closeRuntimeDiagnostics = () => {
+    setState(prev => ({ ...prev, showRuntimeDiagnostics: false }));
+  };
+
+  const clearRuntimeDiagnostics = () => {
+    setState(prev => ({ ...prev, runtimeErrors: [] }));
+  };
+
   return (
     <div style={{ minHeight: "100vh", position: "relative" }}>
       <div
@@ -1151,6 +1344,8 @@ export default function App() {
           onUpdate={updateToLatest}
           onShowUpdateInfo={showUpdateInfo}
           onLaunch={launchAntithesis}
+          runtimeErrorCount={state.runtimeErrors.length}
+          onShowDiagnostics={showRuntimeDiagnostics}
         />
 
         {state.showUpdateInfo && (
@@ -1162,6 +1357,14 @@ export default function App() {
           />
         )}
       </div>
+
+      {state.showRuntimeDiagnostics && (
+        <RuntimeDiagnosticsPanel
+          errors={state.runtimeErrors}
+          onClose={closeRuntimeDiagnostics}
+          onClear={clearRuntimeDiagnostics}
+        />
+      )}
     </div>
   );
 }
