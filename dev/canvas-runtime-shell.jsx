@@ -533,104 +533,295 @@ function UpdateInfoOverlay({
   );
 }
 
-function RuntimeDiagnosticsPanel({ errors, onClose, onClear }) {
+function AntithesisConsolePanel({
+  entries,
+  filter,
+  onFilter,
+  onClose,
+  onClear,
+  expanded,
+  onToggleExpand
+}) {
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportMode, setExportMode] = useState("all");
+  const [copyStatus, setCopyStatus] = useState(false);
+  const scrollRef = useRef(null);
+  const [atBottom, setAtBottom] = useState(true);
+
+  const icons = window.LucideReact || {};
+  const Maximize2 = icons.Maximize2;
+  const Minimize2 = icons.Minimize2;
+  const Trash = icons.Trash;
+  const FileDown = icons.FileDown;
+  const Copy = icons.Copy;
+
+  const visibleEntries = filter === "all"
+    ? entries
+    : entries.filter(entry => entry.level === filter);
+
+  const formatEntry = (entry) => {
+    const source = entry.source ? " " + entry.source : "";
+    const details = entry.details ? "\n" + entry.details : "";
+    return entry.time + " [" + String(entry.level || "info").toUpperCase() + "]" + source + " " + entry.message + details;
+  };
+
+  const visibleText = visibleEntries.map(formatEntry).join("\n");
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(visibleText);
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = visibleText;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      textarea.remove();
+    }
+    setCopyStatus(true);
+    window.setTimeout(() => setCopyStatus(false), 1200);
+  };
+
+  const handleExport = (mode) => {
+    const exportEntries = mode === "all"
+      ? entries
+      : entries.filter(entry => entry.level === mode);
+    const text = exportEntries.map(formatEntry).join("\n");
+    const blob = new Blob([text || "No diagnostic entries."], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "antithesis-diagnostics-" + mode + "-" + Date.now() + ".log";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    setExportOpen(false);
+  };
+
+  const handleScroll = (event) => {
+    const element = event.currentTarget;
+    const bottom = element.scrollHeight - element.scrollTop - element.clientHeight < 12;
+    setAtBottom(bottom);
+  };
+
+  useEffect(() => {
+    const element = scrollRef.current;
+    if (!element || !atBottom) return;
+    element.scrollTop = element.scrollHeight;
+  }, [visibleEntries.length, filter, expanded, atBottom]);
+
+  useEffect(() => {
+    if (!expanded) {
+      setExportOpen(false);
+      setCopyStatus(false);
+    }
+  }, [expanded]);
+
+  const buttonStyle = {
+    width: 34,
+    height: 34,
+    borderRadius: 9,
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.035)",
+    color: "#a1a1aa",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    flexShrink: 0
+  };
+
+  const filterButton = (level, label) => {
+    const active = filter === level || (filter === "all");
+    const selected = filter === level;
+    const opacity = filter === "all" ? 1 : selected ? 1 : 0.30;
+
+    return (
+      <button
+        type="button"
+        onClick={() => onFilter(filter === level ? "all" : level)}
+        title={filter === "all" ? "Tampilkan " + label + " saja" : selected ? "Tampilkan semua" : "Tampilkan " + label + " saja"}
+        aria-label={filter === "all" ? "Filter " + label : selected ? "Tampilkan semua" : "Filter " + label}
+        style={{
+          width: 18,
+          height: 18,
+          padding: 0,
+          border: 0,
+          borderRadius: "50%",
+          background: level === "error"
+            ? "rgb(239,68,68)"
+            : level === "warn"
+              ? "rgb(234,179,8)"
+              : "rgb(34,197,94)",
+          opacity,
+          boxShadow: selected
+            ? "0 0 0 3px rgba(255,255,255,0.10), 0 0 12px " + (
+                level === "error"
+                  ? "rgba(239,68,68,0.45)"
+                  : level === "warn"
+                    ? "rgba(234,179,8,0.40)"
+                    : "rgba(34,197,94,0.40)"
+              )
+            : "none",
+          cursor: "pointer",
+          transform: selected ? "scale(1.05)" : "scale(1)",
+          transition: "all 120ms ease"
+        }}
+      />
+    );
+  };
+
   return (
     <div style={{
       position: "fixed",
       inset: 0,
       zIndex: 1000001,
-      padding: 18,
+      padding: expanded ? 0 : 14,
       boxSizing: "border-box",
       display: "flex",
-      alignItems: "center",
+      alignItems: expanded ? "stretch" : "flex-end",
       justifyContent: "center",
-      background: "rgba(0,0,0,0.76)",
-      backdropFilter: "blur(10px)",
-      WebkitBackdropFilter: "blur(10px)"
+      background: expanded ? "rgba(0,0,0,0.86)" : "transparent",
+      backdropFilter: expanded ? "blur(8px)" : "none",
+      WebkitBackdropFilter: expanded ? "blur(8px)" : "none"
     }}>
       <div style={{
         width: "100%",
-        maxWidth: 620,
-        maxHeight: "calc(100vh - 36px)",
+        maxWidth: expanded ? "none" : 720,
+        height: expanded ? "100%" : "min(44vh, 430px)",
+        minHeight: expanded ? 0 : 190,
         display: "flex",
         flexDirection: "column",
         boxSizing: "border-box",
-        borderRadius: 20,
-        border: "1px solid rgba(248,113,113,0.20)",
-        background: "#111116",
-        boxShadow: "0 30px 100px rgba(0,0,0,0.65)",
+        borderRadius: expanded ? 0 : 16,
+        border: expanded ? "none" : "1px solid rgba(255,255,255,0.10)",
+        background: "#09090b",
+        boxShadow: expanded ? "none" : "0 20px 70px rgba(0,0,0,0.60)",
         overflow: "hidden"
       }}>
         <div style={{
+          minHeight: 50,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           gap: 12,
-          padding: "15px 16px",
-          borderBottom: "1px solid rgba(255,255,255,0.07)"
+          padding: "8px 10px",
+          boxSizing: "border-box",
+          borderBottom: "1px solid rgba(255,255,255,0.07)",
+          background: "#0f0f12"
         }}>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: "0.14em", color: "#f4f4f5" }}>
-              RUNTIME DIAGNOSTICS
-            </div>
-            <div style={{ marginTop: 4, fontSize: 9, color: "#71717a", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
-              {errors.length} captured event{errors.length === 1 ? "" : "s"}
-            </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {filterButton("error", "ERROR")}
+            {filterButton("warn", "WARN")}
+            {filterButton("info", "INFO")}
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button type="button" onClick={onClear} style={{
-              minHeight: 34, padding: "0 11px", borderRadius: 9,
-              border: "1px solid rgba(255,255,255,0.10)",
-              background: "rgba(255,255,255,0.045)", color: "#a1a1aa",
-              fontSize: 9, fontWeight: 800, cursor: "pointer"
-            }}>CLEAR</button>
-            <button type="button" onClick={onClose} aria-label="Tutup runtime diagnostics" style={{
-              width: 34, height: 34, borderRadius: 9,
-              border: "1px solid rgba(255,255,255,0.10)",
-              background: "rgba(255,255,255,0.045)", color: "#d4d4d8",
-              fontSize: 18, lineHeight: 1, cursor: "pointer"
-            }}>×</button>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 6, position: "relative" }}>
+            <button type="button" onClick={handleCopy} title={copyStatus ? "Copied" : "Copy visible logs"} aria-label="Copy visible logs" style={buttonStyle}>
+              {Copy ? <Copy size={16} strokeWidth={1.9} /> : "⧉"}
+            </button>
+
+            <button type="button" onClick={() => setExportOpen(prev => !prev)} title="Export diagnostics" aria-label="Export diagnostics" style={buttonStyle}>
+              {FileDown ? <FileDown size={16} strokeWidth={1.9} /> : "⇩"}
+            </button>
+
+            <button type="button" onClick={onClear} title="Clear diagnostics" aria-label="Clear diagnostics" style={buttonStyle}>
+              {Trash ? <Trash size={16} strokeWidth={1.9} /> : "×"}
+            </button>
+
+            <button type="button" onClick={onToggleExpand} title={expanded ? "Collapse console" : "Expand console"} aria-label={expanded ? "Collapse console" : "Expand console"} style={buttonStyle}>
+              {expanded
+                ? (Minimize2 ? <Minimize2 size={16} strokeWidth={1.9} /> : "↙")
+                : (Maximize2 ? <Maximize2 size={16} strokeWidth={1.9} /> : "⛶")}
+            </button>
+
+            {exportOpen && (
+              <div style={{
+                position: "absolute",
+                top: 40,
+                right: 0,
+                zIndex: 2,
+                minWidth: 150,
+                padding: 5,
+                borderRadius: 10,
+                border: "1px solid rgba(255,255,255,0.10)",
+                background: "#151519",
+                boxShadow: "0 14px 40px rgba(0,0,0,0.55)"
+              }}>
+                {["all", "error", "warn", "info"].map(mode => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => handleExport(mode)}
+                    style={{
+                      width: "100%",
+                      padding: "9px 10px",
+                      border: 0,
+                      borderRadius: 7,
+                      background: "transparent",
+                      color: "#d4d4d8",
+                      textAlign: "left",
+                      fontSize: 10,
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      cursor: "pointer"
+                    }}
+                  >
+                    {mode}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
-        <div style={{ overflowY: "auto", padding: 14, minHeight: 0, WebkitOverflowScrolling: "touch" }}>
-          {errors.length === 0 ? (
-            <div style={{ padding: 18, borderRadius: 13, background: "rgba(255,255,255,0.035)", color: "#71717a", fontSize: 11, lineHeight: 1.6 }}>
-              Belum ada runtime error yang tertangkap.
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: "auto",
+            padding: expanded ? "10px 12px 18px" : "8px 10px",
+            WebkitOverflowScrolling: "touch",
+            overscrollBehavior: "contain",
+            fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+            fontSize: 10,
+            lineHeight: 1.55
+          }}
+        >
+          {visibleEntries.length === 0 ? (
+            <div style={{ padding: "16px 8px", color: "#52525b" }}>
+              No diagnostic entries.
             </div>
           ) : (
-            <div style={{ display: "grid", gap: 10 }}>
-              {errors.map((entry, index) => (
-                <div key={entry.id || index} style={{
-                  padding: 13,
-                  borderRadius: 13,
-                  background: "rgba(127,29,29,0.10)",
-                  border: "1px solid rgba(248,113,113,0.14)"
-                }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginBottom: 8 }}>
-                    <div style={{ fontSize: 9, fontWeight: 900, letterSpacing: "0.10em", color: "#fca5a5" }}>
-                      {entry.type}
-                    </div>
-                    <div style={{ fontSize: 8, color: "#71717a", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
-                      {entry.time}
-                    </div>
+            visibleEntries.map((entry, index) => (
+              <div key={entry.id || index} style={{
+                padding: "3px 2px",
+                whiteSpace: "pre-wrap",
+                overflowWrap: "anywhere",
+                color: entry.level === "error"
+                  ? "#fca5a5"
+                  : entry.level === "warn"
+                    ? "#fde68a"
+                    : "#a7f3d0"
+              }}>
+                <span style={{ color: "#52525b" }}>{entry.time}</span>{" "}
+                <span style={{ color: entry.level === "error" ? "#f87171" : entry.level === "warn" ? "#eab308" : "#22c55e", fontWeight: 800 }}>
+                  [{String(entry.level || "info").toUpperCase()}]
+                </span>{" "}
+                {entry.source ? <span style={{ color: "#71717a" }}>{entry.source} </span> : null}
+                {entry.message}
+                {entry.details ? (
+                  <div style={{ marginLeft: 16, color: "#71717a", whiteSpace: "pre-wrap" }}>
+                    {entry.details}
                   </div>
-                  <div style={{ fontSize: 11, lineHeight: 1.55, color: "#e4e4e7", wordBreak: "break-word" }}>
-                    {entry.message}
-                  </div>
-                  {entry.location && (
-                    <div style={{ marginTop: 7, fontSize: 9, lineHeight: 1.5, color: "#a1a1aa", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", wordBreak: "break-all" }}>
-                      {entry.location}
-                    </div>
-                  )}
-                  {entry.stack && (
-                    <pre style={{ margin: "9px 0 0", whiteSpace: "pre-wrap", font: "9px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace", color: "#a1a1aa", wordBreak: "break-word" }}>
-                      {entry.stack}
-                    </pre>
-                  )}
-                </div>
-              ))}
-            </div>
+                ) : null}
+              </div>
+            ))
           )}
         </div>
       </div>
@@ -847,14 +1038,12 @@ function Phase06Loader({
             LAUNCH ANTITHESIS
           </LoaderButton>
 
-          {runtimeErrorCount > 0 && (
-            <LoaderButton
-              onClick={onShowDiagnostics}
-              title="Lihat error runtime yang ditangkap Loader"
-            >
-              RUNTIME ERRORS · {runtimeErrorCount}
-            </LoaderButton>
-          )}
+          <LoaderButton
+            onClick={onShowDiagnostics}
+            title="Buka Antithesis Console"
+          >
+            ANTITHESIS CONSOLE · {runtimeErrorCount}
+          </LoaderButton>
         </div>
 
         <div style={{
@@ -895,28 +1084,32 @@ export default function App() {
     busy: true,
     view: "loader",
     runtimeErrors: [],
-    showRuntimeDiagnostics: false
+    showRuntimeDiagnostics: false,
+    diagnosticFilter: "all",
+    diagnosticExpanded: false
   });
 
   const activeComponentRef = useRef(null);
   const currentRevisionRef = useRef(stored?.shortSha || "phase-0.5");
 
-  const recordRuntimeError = (entry) => {
+  const recordRuntimeDiagnostic = (entry) => {
     setState(prev => ({
       ...prev,
-      runtimeErrors: [entry, ...prev.runtimeErrors].slice(0, 50),
-      status: prev.view === "app" ? "error" : prev.status,
-      statusText: prev.view === "app"
-        ? "Antithesis mengalami runtime error. Buka RUNTIME ERRORS untuk detail."
+      runtimeErrors: [...prev.runtimeErrors, entry].slice(-500),
+      status: entry.level === "error" && prev.view === "app" ? "error" : prev.status,
+      statusText: entry.level === "error" && prev.view === "app"
+        ? "Antithesis mengalami runtime error. Buka console untuk detail."
         : prev.statusText
     }));
   };
 
   useEffect(() => {
-    const makeEntry = (type, message, stack, location) => ({
+    const makeEntry = (level, source, message, details, stack, location) => ({
       id: Date.now() + "_" + Math.random().toString(36).slice(2, 8),
-      type,
-      message: String(message || "Unknown runtime error"),
+      level,
+      source: source ? String(source) : "runtime",
+      message: String(message || "Unknown diagnostic event"),
+      details: details ? String(details) : "",
       stack: stack ? String(stack) : "",
       location: location ? String(location) : "",
       time: new Date().toLocaleTimeString()
@@ -924,9 +1117,11 @@ export default function App() {
 
     const handleWindowError = (event) => {
       const error = event.error;
-      recordRuntimeError(makeEntry(
-        "UNCAUGHT ERROR",
+      recordRuntimeDiagnostic(makeEntry(
+        "error",
+        "runtime",
         event.message || error?.message || "Unknown uncaught error",
+        "",
         error?.stack,
         event.filename ? event.filename + ":" + event.lineno + ":" + event.colno : ""
       ));
@@ -934,9 +1129,11 @@ export default function App() {
 
     const handleUnhandledRejection = (event) => {
       const reason = event.reason;
-      recordRuntimeError(makeEntry(
-        "UNHANDLED PROMISE REJECTION",
+      recordRuntimeDiagnostic(makeEntry(
+        "error",
+        "runtime",
         reason?.message || String(reason || "Unknown promise rejection"),
+        "Unhandled promise rejection",
         reason?.stack,
         ""
       ));
@@ -945,17 +1142,33 @@ export default function App() {
     window.addEventListener("error", handleWindowError);
     window.addEventListener("unhandledrejection", handleUnhandledRejection);
 
-    window.__ANTITHESIS_RUNTIME__ = {
-      reportError: (error, context = "ANTITHESIS") => {
-        const message = error?.message || String(error || "Unknown runtime error");
-        recordRuntimeError(makeEntry(
-          "ANTITHESIS " + String(context).toUpperCase(),
+    const bridge = {
+      report: (level = "info", source = "app", message = "", details = "") => {
+        const normalizedLevel = ["error", "warn", "info"].includes(String(level).toLowerCase())
+          ? String(level).toLowerCase()
+          : "info";
+        recordRuntimeDiagnostic(makeEntry(
+          normalizedLevel,
+          source,
           message,
+          details,
+          "",
+          ""
+        ));
+      },
+      reportError: (error, context = "app") => {
+        recordRuntimeDiagnostic(makeEntry(
+          "error",
+          context,
+          error?.message || String(error || "Unknown runtime error"),
+          "",
           error?.stack,
           ""
         ));
       }
     };
+
+    window.__ANTITHESIS_RUNTIME__ = bridge;
 
     return () => {
       window.removeEventListener("error", handleWindowError);
@@ -963,6 +1176,7 @@ export default function App() {
       try { delete window.__ANTITHESIS_RUNTIME__; } catch {}
     };
   }, []);
+
 
   const applyComponent = (LoadedApp, patch = {}) => {
     activeComponentRef.current = LoadedApp;
@@ -1121,6 +1335,9 @@ export default function App() {
 
       applyComponent(LoadedApp, {
         currentVersion: loadedVersion,
+        runtimeErrors: [],
+        diagnosticFilter: "all",
+        diagnosticExpanded: false,
         latestVersion: loadedVersion,
         status: "success",
         statusText: "Update berhasil. Revision baru sudah siap.",
@@ -1217,6 +1434,9 @@ export default function App() {
 
           setState(prev => ({
             ...prev,
+            runtimeErrors: [],
+            diagnosticFilter: "all",
+            diagnosticExpanded: false,
             status: "success",
             statusText: "Antithesis terbaru sudah siap. Silakan launch.",
             component: LatestApp,
@@ -1279,11 +1499,19 @@ export default function App() {
   };
 
   const closeRuntimeDiagnostics = () => {
-    setState(prev => ({ ...prev, showRuntimeDiagnostics: false }));
+    setState(prev => ({ ...prev, showRuntimeDiagnostics: false, diagnosticExpanded: false }));
   };
 
   const clearRuntimeDiagnostics = () => {
     setState(prev => ({ ...prev, runtimeErrors: [] }));
+  };
+
+  const setDiagnosticFilter = (filter) => {
+    setState(prev => ({ ...prev, diagnosticFilter: filter }));
+  };
+
+  const toggleDiagnosticExpand = () => {
+    setState(prev => ({ ...prev, diagnosticExpanded: !prev.diagnosticExpanded }));
   };
 
   return (
@@ -1359,10 +1587,14 @@ export default function App() {
       </div>
 
       {state.showRuntimeDiagnostics && (
-        <RuntimeDiagnosticsPanel
-          errors={state.runtimeErrors}
+        <AntithesisConsolePanel
+          entries={state.runtimeErrors}
+          filter={state.diagnosticFilter}
+          onFilter={setDiagnosticFilter}
           onClose={closeRuntimeDiagnostics}
           onClear={clearRuntimeDiagnostics}
+          expanded={state.diagnosticExpanded}
+          onToggleExpand={toggleDiagnosticExpand}
         />
       )}
     </div>
