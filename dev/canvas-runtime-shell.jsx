@@ -642,10 +642,10 @@ function Phase06Loader({
             {isError
               ? "Loader error"
               : updateKind === "version"
-                ? "🔵 VERSION UPDATE"
+                ? "VERSION UPDATE"
                 : updateKind === "revision"
-                  ? "🟡 REVISION UPDATE"
-                  : "🟢 LOADER READY"}
+                  ? "REVISION UPDATE"
+                  : "LOADER READY"}
           </div>
 
           <div style={{
@@ -1145,6 +1145,7 @@ export default function App() {
           latestRevision={state.latestRevision}
           latestVersion={state.latestVersion}
           hasUpdate={state.hasUpdate}
+          updateKind={state.updateKind}
           busy={state.busy}
           onRefresh={() => checkForUpdate(false)}
           onUpdate={updateToLatest}
