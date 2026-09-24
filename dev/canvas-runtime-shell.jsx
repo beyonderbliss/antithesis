@@ -1033,13 +1033,7 @@ function Phase06Loader({
             LAUNCH ANTITHESIS
           </LoaderButton>
 
-          <LoaderButton
-            onClick={onShowDiagnostics}
-            title="Buka Antithesis Console"
-          >
-            ANTITHESIS CONSOLE · {runtimeErrorCount}
-          </LoaderButton>
-        </div>
+       </div>
 
         <div style={{
           marginTop: 16,
