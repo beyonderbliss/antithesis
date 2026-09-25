@@ -1662,6 +1662,7 @@ Do not modify anything that the user did not request.
   const [ExternalAudioWaveVisualizer, setExternalAudioWaveVisualizer] = useState(null);
   const recognitionRef = useRef(null);
   const audioRef = useRef(null);
+  const ttsAudioRef = useRef(null);
   const handleBotRef = useRef(null);
   const [voiceStatus, setVoiceStatus] = useState('idle'); 
   const [voiceStatusText, setVoiceStatusText] = useState('Ketuk untuk bicara dengan Tessa');
@@ -5738,6 +5739,46 @@ const tessaInstruction = ANTITHESIS_PROMPT_TEMPLATES?.getTessaInstruction(techni
         setVoiceErrorMessage('Browser HP ini tidak mendukung fitur suara.');
       }
     }
+  return () => {
+    const recognition = recognitionRef.current;
+
+    if (recognition) {
+      recognition.onstart = null;
+      recognition.onresult = null;
+      recognition.onerror = null;
+      recognition.onend = null;
+
+      try {
+        recognition.stop();
+      } catch (error) {
+        // Recognition mungkin sudah berhenti.
+      }
+
+      recognitionRef.current = null;
+    }
+
+    const audio = audioRef.current;
+
+    if (audio) {
+      audio.pause();
+      audio.onended = null;
+      audio.onerror = null;
+      audio.removeAttribute('src');
+      audio.load();
+      audioRef.current = null;
+    }
+
+    const ttsAudio = ttsAudioRef.current;
+
+    if (ttsAudio) {
+      ttsAudio.pause();
+      ttsAudio.onended = null;
+      ttsAudio.onerror = null;
+      ttsAudio.removeAttribute('src');
+      ttsAudio.load();
+      ttsAudioRef.current = null;
+    }
+  };
   }, []);
 
 
@@ -5875,6 +5916,10 @@ if (savedVoiceGif) setCustomVoiceGif(savedVoiceGif);
 
     addLog("Multimodal Generation & Reference Pipeline v13.2.0 berhasil dimuat.", "info");
 addLog("Reference & Inpaint Pipeline siap digunakan.", "success");
+
+    return () => {
+      fontLink.remove();
+    };
 }, []);
 
   useEffect(() => {
@@ -7694,6 +7739,7 @@ setInpaintDisplayMasks(prev => {
       if (result && result.data && result.data[0]) {
         const audioUrl = result.data[0].url;
         const audio = new Audio(audioUrl);
+        ttsAudioRef.current = audio;
         
         try {
           await audio.play();
@@ -7701,6 +7747,10 @@ setInpaintDisplayMasks(prev => {
         } catch (playError) {
           console.warn("Autoplay diblokir browser:", playError);
           addLog("[Qwen TTS] Suara siap, tapi browser memblokir putar otomatis. Tap layar lalu coba lagi.", "warning");
+        } finally {
+          if (ttsAudioRef.current === audio) {
+            ttsAudioRef.current = null;
+          }
         }
 
       } else {
