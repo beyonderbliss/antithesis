@@ -545,6 +545,7 @@ function AntithesisConsolePanel({
   const [copyStatus, setCopyStatus] = useState(false);
   const scrollRef = useRef(null);
   const [atBottom, setAtBottom] = useState(true);
+  const isMobileViewport = typeof window !== "undefined" && window.innerWidth <= 640;
 
   const icons = window.LucideReact || {};
   const Maximize2 = icons.Maximize2;
@@ -689,8 +690,12 @@ function AntithesisConsolePanel({
       <div style={{
         width: "100%",
         maxWidth: expanded ? "none" : 720,
-        height: expanded ? "100%" : "min(44vh, 430px)",
-        minHeight: expanded ? 0 : 190,
+        height: expanded
+          ? "100%"
+          : isMobileViewport
+            ? "30vh"
+            : "min(44vh, 430px)",
+        minHeight: expanded ? 0 : isMobileViewport ? 150 : 190,
         display: "flex",
         flexDirection: "column",
         boxSizing: "border-box",
@@ -844,14 +849,16 @@ function Phase06Loader({
   busy,
 }) {
   const isError = status === "error";
+  const isMobileViewport = typeof window !== "undefined" && window.innerWidth <= 640;
 
   return (
     <div style={{
       minHeight: "100vh",
       boxSizing: "border-box",
-      padding: 20,
+      padding: isMobileViewport ? "14px 14px calc(30vh + 14px)" : 20,
       display: "flex",
-      alignItems: "center",
+      alignItems: isMobileViewport ? "flex-start" : "center",
+      overflowY: isMobileViewport ? "auto" : "visible",
       justifyContent: "center",
       background: "#08080b",
       color: "#f4f4f5",
@@ -860,10 +867,13 @@ function Phase06Loader({
       <div style={{
         width: "100%",
         maxWidth: 430,
+        maxHeight: isMobileViewport ? "calc(70vh - 28px)" : "none",
         border: "1px solid rgba(255,255,255,0.09)",
         borderRadius: 22,
-        padding: 22,
+        padding: isMobileViewport ? 18 : 22,
         background: "rgba(18,18,23,0.96)",
+        overflowY: isMobileViewport ? "auto" : "visible",
+        WebkitOverflowScrolling: "touch",
         boxShadow: "0 24px 80px rgba(0,0,0,0.45)"
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 22 }}>
