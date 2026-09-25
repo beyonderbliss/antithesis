@@ -87,7 +87,10 @@ const ANTITHESIS_CORE = {
     "https://raw.githubusercontent.com/beyonderbliss/antithesis/main/src/gist/prompt-templates.js",
 
   idUtils:
-    "https://raw.githubusercontent.com/beyonderbliss/antithesis/main/src/gist/id-utils.js"
+    "https://raw.githubusercontent.com/beyonderbliss/antithesis/main/src/gist/id-utils.js",
+
+  imageReference:
+    "https://raw.githubusercontent.com/beyonderbliss/antithesis/main/src/gist/image-reference.js"
 };
 
 // ===================================================
@@ -144,6 +147,7 @@ let ANTITHESIS_VOICE_UTILS = null;
 let ANTITHESIS_SETTINGS_DRAWER = null;
 let ANTITHESIS_PROMPT_TEMPLATES = null;
 let ANTITHESIS_ID_UTILS = null;
+let ANTITHESIS_IMAGE_REFERENCE = null;
 
 // ===================================================
 // INPAINT UTILS BRIDGE
@@ -487,7 +491,7 @@ useEffect(() => {
 ]);
 
   // ==============================================
-  // IMAGE REGISTRY HELPERS — STEP 1
+  // IMAGE / REFERENCE IDENTITY BRIDGE — COMMIT #1
   // ==============================================
   const createImageId = (type = 'image') => {
     if (
@@ -501,22 +505,70 @@ useEffect(() => {
 
     return ANTITHESIS_ID_UTILS.createImageId(type);
   };
-    const getImageById = (imageId) => {
-    if (!imageId) return null;
-    return imageRegistry[imageId] || null;
+
+  const getImageById = (imageId) => {
+    if (!ANTITHESIS_IMAGE_REFERENCE) {
+      throw new Error(
+        "ANTITHESIS_CORE imageReference belum siap."
+      );
+    }
+
+    return ANTITHESIS_IMAGE_REFERENCE.getImageById(
+      imageRegistry,
+      imageId
+    );
   };
-    const registerImage = (imageData) => {
+
+  const registerImage = (imageData) => {
+    if (
+      !ANTITHESIS_IMAGE_REFERENCE ||
+      typeof ANTITHESIS_IMAGE_REFERENCE.registerImage !== "function"
+    ) {
+      throw new Error(
+        "ANTITHESIS_CORE imageReference belum siap."
+      );
+    }
+
     if (!imageData || !imageData.id) {
       console.warn('[ImageRegistry] registerImage dipanggil tanpa ID.');
       return null;
     }
 
-    setImageRegistry(prev => ({
-      ...prev,
-      [imageData.id]: imageData
-    }));
+    setImageRegistry(prev =>
+      ANTITHESIS_IMAGE_REFERENCE.registerImage(
+        prev,
+        imageData
+      )
+    );
 
     return imageData.id;
+  };
+
+  const getReferenceIdBySlot = (slotIndex) => {
+    if (!ANTITHESIS_IMAGE_REFERENCE) {
+      throw new Error(
+        "ANTITHESIS_CORE imageReference belum siap."
+      );
+    }
+
+    return ANTITHESIS_IMAGE_REFERENCE.getReferenceIdBySlot(
+      referenceSlotIds,
+      slotIndex
+    );
+  };
+
+  const getReferenceEntityBySlot = (slotIndex) => {
+    if (!ANTITHESIS_IMAGE_REFERENCE) {
+      throw new Error(
+        "ANTITHESIS_CORE imageReference belum siap."
+      );
+    }
+
+    return ANTITHESIS_IMAGE_REFERENCE.getReferenceEntityBySlot(
+      referenceSlotIds,
+      imageRegistry,
+      slotIndex
+    );
   };
 
   // ===================================================
@@ -705,7 +757,7 @@ useEffect(() => {
 // Select target berdasarkan Reference Slot.
 // ===================================================
 const selectAutoInpaintTargetBySlot = (slotIndex) => {
-  const targetId = referenceSlotIds[slotIndex];
+  const targetId = getReferenceIdBySlot(slotIndex);
 
   if (!targetId) {
     console.warn(
@@ -715,7 +767,7 @@ const selectAutoInpaintTargetBySlot = (slotIndex) => {
     return false;
   }
 
-  const target = imageRegistry[targetId];
+  const target = getReferenceEntityBySlot(slotIndex);
 
   if (!target) {
     console.warn(
@@ -1746,6 +1798,46 @@ useEffect(() => {
   };
 
   loadIdUtils();
+
+  return () => {
+    cancelled = true;
+  };
+}, []);
+
+// ===================================================
+// ANTITHESIS CORE — LOAD IMAGE / REFERENCE IDENTITY
+// ===================================================
+
+useEffect(() => {
+  let cancelled = false;
+
+  const loadImageReference = async () => {
+    try {
+      const module =
+        await loadAntithesisModule("imageReference");
+
+      if (cancelled) return;
+
+      ANTITHESIS_IMAGE_REFERENCE = module;
+
+      addLog(
+        "[External Module] image-reference.js berhasil dimuat via ANTITHESIS_CORE!",
+        "success"
+      );
+    } catch (error) {
+      console.error(
+        "[External Module] Gagal memuat image-reference.js:",
+        error
+      );
+
+      addLog(
+        `[External Module] image-reference.js gagal dimuat: ${error.message}`,
+        "error"
+      );
+    }
+  };
+
+  loadImageReference();
 
   return () => {
     cancelled = true;
