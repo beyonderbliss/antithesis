@@ -111,6 +111,72 @@ A refactor is successful only when all of these are true:
 - No unrelated feature or UI change was bundled into the step.
 - The next refactoring step is easier to reason about than before.
 
+## Fundamental application boundaries
+
+Antithesis has two distinct lifecycle boundaries. These boundaries are architectural contracts and must be preserved during refactoring.
+
+### 1. Navigation boundary — preserve the current application instance
+
+Navigation between Loader and MainApp is **not** an application lifecycle reset.
+
+```
+MainApp #1
+    ↓
+Loader
+    ↓
+MainApp #1
+```
+
+When the user moves between Loader and MainApp:
+
+- Keep the currently loaded MainApp instance alive.
+- Preserve its React state, session state, loaded resources, and diagnostic history.
+- Do not unmount/remount MainApp merely because the visible view changes.
+- Do not use navigation as an implicit cleanup mechanism.
+
+The Loader is a persistent shell for the current Canvas session, not a parent that owns a disposable MainApp instance.
+
+### 2. Update boundary — replace the application instance
+
+A successful revision/version update is a genuine application lifecycle boundary.
+
+```
+MainApp #1
+    ↓
+compile App #2
+    ↓
+validate App #2
+    ↓
+dispose/unmount App #1
+    ↓
+clear old session/diagnostic boundary
+    ↓
+mount App #2
+```
+
+The update sequence must obey these rules:
+
+1. Fetch/compile the candidate application first.
+2. Validate that the candidate is loadable before destroying the current application.
+3. If compilation or validation fails, keep MainApp #1 running unchanged.
+4. Only after successful validation, dispose/unmount MainApp #1.
+5. Clear lifecycle-scoped session and diagnostic state that belongs to MainApp #1.
+6. Mount MainApp #2 as a fresh application instance.
+7. Do not allow resources, listeners, timers, animation loops, object URLs, or other disposable effects owned by MainApp #1 to survive into MainApp #2.
+
+### Lifecycle distinction
+
+The same UI shell therefore has two intentionally different transitions:
+
+| Transition | MainApp instance | Session / diagnostics |
+| --- | --- | --- |
+| MainApp → Loader | preserved | preserved |
+| Loader → MainApp | preserved | preserved |
+| Revision/version update | destroyed | reset for new instance |
+| Failed update validation | preserved | preserved |
+
+Do not implement these rules by adding a generic lifecycle framework prematurely. First identify the real resources and effects that cross the update boundary; then introduce only the cleanup mechanism required by those concrete responsibilities.
+
 ## Baseline
 
 The original behavioral baseline is commit:
